@@ -1,0 +1,13 @@
+{
+  "name": "foc-lock-site",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "clean-css": "^5.3.3",
+    "html-minifier-terser": "^7.2.0",
+    "javascript-obfuscator": "^5.4.3"
+  },
+  "scripts": {
+    "build": "node build.mjs"
+  }
+}
