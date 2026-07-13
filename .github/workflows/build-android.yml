@@ -26,11 +26,17 @@ jobs:
       - name: Build web app
         run: npm run build
 
+      - name: Set app entry point
+        run: cp dist/live.html dist/index.html
+
       - name: Add Android platform
         run: npx cap add android
 
       - name: Sync Capacitor
         run: npx cap sync
+
+      - name: Generate app icons
+        run: npx @capacitor/assets generate --android
 
       - name: Grant execute permission for gradlew
         working-directory: android
