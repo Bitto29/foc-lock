@@ -810,7 +810,7 @@ body{background:var(--bg);}
 #sess.sess-immersive .sess-xp-live{font-size:15px;}
 #sess.sess-immersive .sess-status-txt{font-size:13px;}
 #sess.sess-immersive .sctrl{margin-top:30px;}
-#sess.sess-immersive .sess-action-btn{padding:15px 28px;font-size:15px;}
+/*#sess.sess-immersive .sess-action-btn{padding:15px 28px;font-size:15px;}*/
 #sess.sess-immersive .sess-tools-tray,
 #sess.sess-immersive .smusic{
   opacity:.5;transition:opacity .25s ease;
