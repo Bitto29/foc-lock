@@ -2,6 +2,11 @@
   "name": "foc-lock-site",
   "private": true,
   "type": "module",
+  "dependencies": {
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/local-notifications": "^6.0.0"
+  },
   "devDependencies": {
     "clean-css": "^5.3.3",
     "html-minifier-terser": "^7.2.0",
@@ -10,10 +15,4 @@
   "scripts": {
     "build": "node build.mjs"
   }
-}
-
-"dependencies": {
-  "@capacitor/core": "^6.0.0",
-  "@capacitor/android": "^6.0.0",
-  "@capacitor/local-notifications": "^6.0.0"
 }
