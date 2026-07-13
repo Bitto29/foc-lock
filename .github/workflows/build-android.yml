@@ -21,31 +21,27 @@ jobs:
           java-version: '17'
 
       - name: Install dependencies
-        working-directory: foc-lock
         run: npm install
 
       - name: Build web app
-        working-directory: foc-lock
         run: npm run build
 
       - name: Add Android platform
-        working-directory: foc-lock
         run: npx cap add android
 
       - name: Sync Capacitor
-        working-directory: foc-lock
         run: npx cap sync
 
       - name: Grant execute permission for gradlew
-        working-directory: foc-lock/android
+        working-directory: android
         run: chmod +x gradlew
 
       - name: Build APK
-        working-directory: foc-lock/android
+        working-directory: android
         run: ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: foclock-apk
-          path: foc-lock/android/app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
