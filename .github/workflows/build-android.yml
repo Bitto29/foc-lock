@@ -36,7 +36,7 @@ jobs:
         run: npx cap sync
 
       - name: Generate app icons
-        run: npx @capacitor/assets generate --android
+        run: npx @capacitor/assets generate --android --assetPath resources
 
       - name: Grant execute permission for gradlew
         working-directory: android
