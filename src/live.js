@@ -372,6 +372,7 @@ async function bootSupabase(){
   updateAuthUI();
 
   if(AUTH.user) await loadCloud();
+  checkAnnouncements();
 
   SB.auth.onAuthStateChange(async function(event,session){
     AUTH.session=session;
@@ -457,14 +458,75 @@ function init(){
   document.getElementById('sug-routine').textContent=getRoutine();
   checkRems(); setInterval(checkRems,60000);
   initNotifServiceWorker();
+  if(isNativeApp()){ setTimeout(function(){ ensureNativeNotifPermission(); },1000); }
   document.addEventListener('visibilitychange',onVis);
-  restoreSessionState(); bootSupabase(); updateAuthUI();
+  restoreSessionState(); bootSupabase(); window.addEventListener('online', function(){ checkAnnouncements(); }); updateAuthUI();
   renderFriendsLeaderboard();
   if('Notification' in window && Notification.permission==='default'){
     setTimeout(function(){ ensureBrowserNotifications(); },1500);
   }
   if(THEME_MQ.addEventListener)THEME_MQ.addEventListener('change',onSystemThemeChange);
   else if(THEME_MQ.addListener)THEME_MQ.addListener(onSystemThemeChange);
+}
+
+ // for the edit
+var SEEN_ANNOUNCEMENTS_KEY = 'fl_seen_ann';
+
+function getSeenAnnouncementIds(){
+  try{ return JSON.parse(localStorage.getItem(SEEN_ANNOUNCEMENTS_KEY) || '[]'); }
+  catch(e){ return []; }
+}
+function markAnnouncementSeen(id){
+  var seen = getSeenAnnouncementIds();
+  if(seen.indexOf(id) === -1){ seen.push(id); localStorage.setItem(SEEN_ANNOUNCEMENTS_KEY, JSON.stringify(seen)); }
+}
+
+async function checkAnnouncements(){
+  if(!SB) return;
+  try{
+    var res = await SB.from('app_announcements').select('*').eq('active', true).order('created_at', {ascending:false});
+    if(res.error || !res.data || !res.data.length) return;
+
+    var userId = AUTH.user ? AUTH.user.id : null;
+    var seen = getSeenAnnouncementIds();
+
+    var match = res.data.find(function(a){
+      if(a.target_type === 'specific'){
+        if(!userId || !a.target_user_ids || a.target_user_ids.indexOf(userId) === -1) return false;
+      }
+      if(a.dismissible && seen.indexOf(a.id) !== -1) return false; // already dismissed, skip
+      return true;
+    });
+
+    if(match) showAnnouncementPopup(match);
+  }catch(e){}
+}
+
+function showAnnouncementPopup(a){
+  var existing = document.getElementById('ann-popup-ov');
+  if(existing) existing.remove();
+
+  var ov = document.createElement('div');
+  ov.id = 'ann-popup-ov';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  ov.innerHTML =
+    '<div style="background:var(--bg2,#1a1f2e);border-radius:16px;padding:24px;max-width:340px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.4);">'
+    + '<div style="font-size:17px;font-weight:800;margin-bottom:8px;color:var(--text,#fff);">' + escHtml(a.title) + '</div>'
+    + '<div style="font-size:14px;color:var(--text2,#aab);line-height:1.5;margin-bottom:20px;">' + escHtml(a.message) + '</div>'
+    + (a.dismissible
+        ? '<button id="ann-close-btn" style="width:100%;padding:12px;border:none;border-radius:10px;background:var(--accent,#3d8fe0);color:#fff;font-weight:700;font-size:14px;cursor:pointer;">Got it</button>'
+        : '<button id="ann-close-btn" style="width:100%;padding:12px;border:none;border-radius:10px;background:var(--accent,#3d8fe0);color:#fff;font-weight:700;font-size:14px;cursor:pointer;">OK</button>')
+    + '</div>';
+
+  document.body.appendChild(ov);
+  document.getElementById('ann-close-btn').onclick = function(){
+    if(a.dismissible) markAnnouncementSeen(a.id);
+    ov.remove();
+  };
+}
+
+function escHtml(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 // ===== THEME =====
@@ -857,6 +919,21 @@ async function minimizeSess(){
   SESS_MIN=true;
   document.getElementById('sess').classList.remove('active');
   document.getElementById('rbn').classList.remove('show');
+
+  /* Native Android PiP */
+  if(isNativeApp() && window.Capacitor.Plugins.PiP){
+    try{
+      var sup = await window.Capacitor.Plugins.PiP.isPipSupported();
+      if(sup && sup.supported){
+        await window.Capacitor.Plugins.PiP.enterPip();
+        document.getElementById('sess-pip').classList.add('show');
+        if(CUR.subj)document.getElementById('pip-subj').textContent=CUR.subj;
+        updPipDisp();
+        return;
+      }
+    }catch(e){ /* fall through to web PiP paths */ }
+  }
+
   /* Try Document Picture-in-Picture (Chrome 116+, always on top of all tabs) */
   if(window.documentPictureInPicture){
     try{
@@ -1068,6 +1145,38 @@ function initNotifServiceWorker(){
     navigator.serviceWorker.register(swUrl).then(function(reg){ SW_REG=reg; }).catch(function(){});
   }catch(e){}
 }
+function isNativeApp(){
+  return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+}
+
+async function ensureNativeNotifPermission(){
+  if(!isNativeApp()) return false;
+  try{
+    var LN = window.Capacitor.Plugins.LocalNotifications;
+    var perm = await LN.checkPermissions();
+    if(perm.display !== 'granted'){
+      perm = await LN.requestPermissions();
+    }
+    return perm.display === 'granted';
+  }catch(e){ return false; }
+}
+
+var NATIVE_NOTIF_ID_COUNTER = 1000;
+async function sendNativeNotif(t,b,o){
+  if(!isNativeApp()) return false;
+  try{
+    var LN = window.Capacitor.Plugins.LocalNotifications;
+    await LN.schedule({
+      notifications:[{
+        id: NATIVE_NOTIF_ID_COUNTER++,
+        title: t,
+        body: String(b||''),
+        schedule:{ at: new Date(Date.now()+100) }
+      }]
+    });
+    return true;
+  }catch(e){ return false; }
+}
 function ensureBrowserNotifications(){
   if(!('Notification' in window))return Promise.resolve(false);
   initNotifServiceWorker();
@@ -1076,6 +1185,10 @@ function ensureBrowserNotifications(){
   return Notification.requestPermission().then(function(p){return p==='granted';}).catch(function(){return false;});
 }
 function sndNotif(t,b,o){
+  if(isNativeApp()){
+    sendNativeNotif(t,b,o);
+    return true;
+  }
   if(!('Notification' in window)||Notification.permission!=='granted')return false;
   var opts={body:String(b||''),icon:NOTIF_ICON,badge:NOTIF_BADGE,tag:o&&o.tag?String(o.tag):undefined,renotify:true,silent:false,requireInteraction:!!(o&&o.requireInteraction)};
   // Prefer the service worker path: required on Android Chrome, where the
