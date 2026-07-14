@@ -32,11 +32,15 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
+      - name: Enable PiP in AndroidManifest
+        run: |
+          sed -i 's/android:name=".MainActivity"/android:name=".MainActivity" android:supportsPictureInPicture="true" android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|screenLayout|uiMode|navigation"/' android/app/src/main/AndroidManifest.xml
+
       - name: Sync Capacitor
         run: npx cap sync
 
       - name: Generate app icons
-        run: npx @capacitor/assets generate --android --assetPath resources
+        run: npx @capacitor/assets generate --android
 
       - name: Grant execute permission for gradlew
         working-directory: android
