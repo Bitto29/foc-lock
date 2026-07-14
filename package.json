@@ -6,7 +6,7 @@
     "@capacitor/core": "^6.0.0",
     "@capacitor/android": "^6.0.0",
     "@capacitor/local-notifications": "^6.0.0",
-    "capacitor-plugin-pip": "^1.0.0"
+    "capacitor-plugin-pip": "git+https://github.com"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.0.0",
