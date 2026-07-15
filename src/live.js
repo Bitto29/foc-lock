@@ -3107,7 +3107,7 @@ function focoAddMsg(role, text, imgSrc, atts){
   if(role === 'bot'){
     av = document.createElement('img');
     av.className = 'foco-av-sm';
-    av.src = 'logo.png';
+    av.src = 'foco.png';
     av.alt = 'Foco';
   } else {
     av = document.createElement('div');
@@ -3196,7 +3196,7 @@ function focoTyping(id){
   div.id = id;
   var av = document.createElement('img');
   av.className = 'foco-av-sm';
-  av.src = 'logo.png';
+  av.src = 'foco.png';
   var bub = document.createElement('div');
   bub.className = 'foco-bubble bot foco-typing-wrap';
   bub.innerHTML = '<div class="foco-dot"></div><div class="foco-dot"></div><div class="foco-dot"></div>';
@@ -3462,7 +3462,7 @@ function focoInitSession(){
     _e.className = 'foco-empty';
     _e.innerHTML =
       '<div class="foco-empty-av-wrap">' +
-        '<img class="foco-empty-av" src="logo.png" alt="Foco">' +
+        '<img class="foco-empty-av" src="foco.png" alt="Foco">' +
         '<div class="foco-empty-glow"></div>' +
       '</div>' +
       '<div class="foco-empty-name">Hi, I&#39;m Foco 👋</div>' +
@@ -3628,7 +3628,7 @@ function sfocoAddMsg(role, text, atts, imgSrc){
   if(role === 'bot'){
     av = document.createElement('img');
     av.className = 'sfoco-bav';
-    av.src = 'logo.png';
+    av.src = 'foco.png';
   } else {
     av = document.createElement('div');
     av.className = 'sfoco-uav';
@@ -3675,7 +3675,7 @@ function sfocoTyping(id){
   div.id = id;
   var av = document.createElement('img');
   av.className = 'sfoco-bav';
-  av.src = 'logo.png';
+  av.src = 'foco.png';
   var bub = document.createElement('div');
   bub.className = 'sfoco-bubble bot sfoco-typing';
   bub.innerHTML = '<div class="sfoco-dot"></div><div class="sfoco-dot"></div><div class="sfoco-dot"></div>';
