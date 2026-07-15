@@ -1,904 +1,1467 @@
-<!DOCTYPE html> 
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<meta property="og:image" content="https://foclock.vercel.app/social-media.jpg">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://foclock.vercel.app/">
-<meta name="title" content="Foc Lock – All-in-One Study Tracker">
-<meta name="description" content="Boost your productivity with Foc Lock. Focus timer, study statistics, streaks, XP, achievements, AI study assistant, ambient sounds, cloud sync, and more.">
-<meta name="keywords" content="study tracker, focus timer, pomodoro, productivity, study app, student, AI study assistant, streak tracker, focus app, Foc Lock">
-<meta name="author" content="Basit Iqbal Bitto">
-<meta name="robots" content="index, follow">
-<meta name="theme-color" content="#0F172A">
-<meta name="color-scheme" content="dark light">
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta property="og:image" content="https://foclock.vercel.app/social-media.jpg" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://foclock.vercel.app/" />
+<meta name="title" content="Foc Lock – All-in-One Study Tracker" />
+<meta
+    name="description"
+    content="Boost your productivity with Foc Lock. Focus timer, study statistics, streaks, XP, achievements, AI study assistant, ambient sounds, cloud sync, and more."
+/>
+<meta
+    name="keywords"
+    content="study tracker, focus timer, pomodoro, productivity, study app, student, AI study assistant, streak tracker, focus app, Foc Lock"
+/>
+<meta name="author" content="Basit Iqbal Bitto" />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0F172A" />
+<meta name="color-scheme" content="dark light" />
 <title>Foc Lock — All-In-One Study Tracker.</title>
 <link rel="icon" type="image/png" href="https://foclock.vercel.app/clogo.png" />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600&family=JetBrains+Mono:wght@400;500;700&display=swap"
+    rel="stylesheet"
+/>
 <style>
-/* ============ TOKENS — pulled directly from the Foc Lock app ============ */
-:root{
-  --bg:#0b0d12; --bg2:#101319; --bg3:#171a22;
-  --card:#13161d; --card2:#1a1e27;
-  --border:#222631; --border2:#323847;
-  --accent:#3b82f6; --accent2:#60a5fa; --accent3:#2563eb; --accent4:#1d4ed8;
-  --text:#e5e7eb; --text2:#9398a3; --text3:#5b6070;
-  --success:#22c55e; --warn:#f59e0b; --danger:#ef4444;
-  --shadow:0 8px 32px rgba(0,0,0,.5); --shadow2:0 4px 16px rgba(0,0,0,.3);
-  --radius:16px; --radius-sm:10px; --radius-xs:8px;
-  --font:'Plus Jakarta Sans',system-ui,sans-serif;
-  --mono:'JetBrains Mono',monospace;
-  --glow:0 0 20px rgba(59,130,246,.25); --glow2:0 0 16px rgba(59,130,246,.15);
-  --paper:#13161d; --paper2:#1a1e27;
-  --ink:#e5e7eb; --ink2:#9398a3; --ink3:#5b6070;
-  --line:#2f3544; --pen:#3b82f6; --shadow-c:rgba(0,0,0,.55);
-  color-scheme: dark;
-}
-[data-theme="light"]{
-  --bg:#e1eaf7; --bg2:#ebedf0; --bg3:#ced4e0;
-  --card:#e8f1ff; --card2:#f7f8fc;
-  --border:#d0d6e2; --border2:#a8b4cc;
-  --accent:#2060b8; --accent2:#1a50a0; --accent3:#3d8fe0; --accent4:#133e88;
-  --text:#111827; --text2:#4b5563; --text3:#6b7280;
-  --success:#16a05e; --warn:#d4880f; --danger:#dc2626;
-  --shadow:0 8px 32px rgba(20,30,60,.10); --shadow2:0 4px 16px rgba(20,30,60,.08);
-  --paper:#ffffff; --paper2:#f7f8fc;
-  --ink:#111827; --ink2:#4b5563; --ink3:#6b7280;
-  --line:#c9d3e3; --pen:#2060b8; --shadow-c:rgba(20,30,60,.15);
-  color-scheme: light;
-}
-*{box-sizing:border-box; margin:0; padding:0;}
-html{scroll-behavior:smooth;}
-body{
-  font-family:var(--font);
-  background:var(--bg);
-  color:var(--text);
-  transition:background .35s ease, color .35s ease;
-  overflow-x:hidden;
-  -webkit-font-smoothing:antialiased;
-}
-body::before{
-  content:'';
-  position:fixed; inset:0; z-index:-1; pointer-events:none;
-  background:
-    radial-gradient(ellipse 55% 38% at 82% 6%, rgba(59,130,246,.14) 0%, transparent 62%),
-    radial-gradient(ellipse 45% 30% at 5% 85%, rgba(59,130,246,.08) 0%, transparent 60%);
-}
-[data-theme="light"] body::before{
-  background:
-    radial-gradient(ellipse 55% 38% at 82% 6%, rgba(32,96,184,.07) 0%, transparent 62%),
-    radial-gradient(ellipse 45% 30% at 5% 85%, rgba(32,96,184,.05) 0%, transparent 60%);
-}
-img{max-width:100%; display:block;}
-a{color:inherit; text-decoration:none;}
-.wrap{max-width:1120px; margin:0 auto; padding:0 24px;}
-section{position:relative; padding:120px 0;}
-@media(max-width:720px){ section{padding:76px 0;} }
-
-/* ============ NAV ============ */
-.nav{
-  position:sticky; top:0; z-index:50;
-  background:color-mix(in srgb, var(--bg2) 88%, transparent);
-  backdrop-filter:blur(14px);
-  border-bottom:1px solid var(--border);
-}
-.nav .wrap{display:flex; align-items:center; justify-content:space-between; height:64px;}
-.brand{display:flex; align-items:center; gap:10px; font-weight:800; font-size:18px; letter-spacing:-.02em;}
-.brand img{width:30px; height:30px; border-radius:8px; box-shadow:var(--glow2);}
-.navlinks{display:flex; align-items:center; gap:28px; font-size:14px; color:var(--text2); font-weight:600;}
-.navlinks a:hover{color:var(--accent2);}
-.themebtn{
-  width:40px; height:40px; border-radius:50%;
-  border:1px solid var(--border); background:var(--bg3);
-  display:flex; align-items:center; justify-content:center;
-  cursor:pointer; transition:all .25s ease;
-  font-size:17px;
-}
-.themebtn:hover{border-color:var(--accent); box-shadow:var(--glow2);}
-
-.cta{
-  display:inline-flex; align-items:center; gap:8px;
-  background:linear-gradient(135deg,var(--accent),var(--accent3));
-  color:#fff; font-weight:700; font-size:14.5px;
-  padding:12px 22px; border-radius:12px; border:none; cursor:pointer;
-  box-shadow:var(--glow);
-  transition:transform .2s ease, box-shadow .2s ease;
-}
-.cta:hover{transform:translateY(-2px); box-shadow:0 0 28px rgba(59,130,246,.4);}
-.cta.ghost{
-  background:transparent; color:var(--text); border:1px solid var(--border2); box-shadow:none;
-}
-.cta.ghost:hover{border-color:var(--accent); color:var(--accent2);}
-
-@media(max-width:720px){
-  .nav .wrap{
-    gap:10px;
-  }
-  .navlinks{
-    gap:10px;
-    margin-left:auto;
-  }
-  .navlinks > a:not(.nav-app-btn){
-    display:none;
-  }
-  .nav-app-btn{
-    padding:8px 12px !important;
-    font-size:12.5px !important;
-    border-radius:10px !important;
-    white-space:nowrap;
-  }
-  .themebtn{
-    width:38px;
-    height:38px;
-    font-size:16px;
-  }
-}
-
-/* ============ HERO ============ */
-.hero{padding-top:88px; padding-bottom:60px;}
-.hero .wrap{display:grid; grid-template-columns:1.05fr .95fr; gap:56px; align-items:center;}
-@media(max-width:900px){ .hero .wrap{grid-template-columns:1fr; text-align:center;} }
-
-.eyebrow{
-  display:inline-flex; align-items:center; gap:8px;
-  font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase;
-  color:var(--accent2); background:rgba(59,130,246,.1);
-  border:1px solid rgba(59,130,246,.25); padding:6px 12px; border-radius:100px;
-  margin-bottom:22px;
-}
-.eyebrow .dot{width:6px; height:6px; border-radius:50%; background:var(--success); box-shadow:0 0 8px var(--success);}
-
-h1.headline{
-  font-size:clamp(38px,5.2vw,64px); font-weight:800; letter-spacing:-.035em; line-height:1.04;
-}
-h1.headline em{
-  font-style:normal;
-  background:linear-gradient(135deg,var(--accent2),var(--accent));
-  -webkit-background-clip:text; background-clip:text; color:transparent;
-}
-.sub{margin-top:20px; font-size:18px; color:var(--text2); line-height:1.6; max-width:480px;}
-@media(max-width:900px){ .sub{margin-inline:auto;} }
-
-.herobtns{display:flex; gap:14px; margin-top:34px;}
-@media(max-width:900px){ .herobtns{justify-content:center; flex-wrap:wrap;} }
-
-.trust{margin-top:34px; display:flex; align-items:center; gap:14px; color:var(--text3); font-size:13px;}
-@media(max-width:900px){ .trust{justify-content:center;} }
-.trust .stars{color:var(--warn); letter-spacing:2px;}
-
-/* --- The session ring, styled as a sticky note (signature element) --- */
-/* Sticky-note counter */
-.index-card{
-  position:relative;
-  background:var(--card);
-  border:2px solid var(--ink);
-  border-radius:6px;
-  width:min(300px,88vw);
-  padding:22px 20px 20px;
-  transform:rotate(4deg);
-  box-shadow:6px 8px 0 var(--shadow-c);
-}
-
-@media(min-width:641px){
-  .index-card{
-    width:min(340px,90vw);
-    padding:26px 24px 24px;
-    transform:rotate(5deg);
-    box-shadow:8px 10px 0 var(--shadow-c);
-  }
-}
-
-.tape{
-  position:absolute;
-  top:-13px;
-  left:50%;
-  transform:translateX(-50%) rotate(-3deg);
-  width:78px;
-  height:24px;
-  background:rgba(200,180,90,.35);
-  border:1px solid rgba(160,140,60,.4);
-}
-
-.index-card .ic-head{
-  display:flex;
-  justify-content:space-between;
-  align-items:baseline;
-  font-family:'IBM Plex Mono',monospace;
-  font-size:10px;
-  color:var(--ink3);
-  border-bottom:1px dashed var(--line);
-  padding-bottom:9px;
-  margin-bottom:14px;
-}
-
-.ring-wrap{
-  position:relative;
-  width:100%;
-  aspect-ratio:1;
-  max-width:200px;
-  margin:0 auto;
-}
-
-@media(min-width:641px){
-  .ring-wrap{max-width:240px;}
-}
-
-.ring{
-  width:100%;
-  height:100%;
-  transform:rotate(-90deg);
-}
-
-.ring-track{
-  fill:none;
-  stroke:var(--line);
-  stroke-width:9;
-}
-
-.ring-fill{
-  fill:none;
-  stroke:var(--pen);
-  stroke-width:9;
-  stroke-linecap:round;
-  stroke-dasharray:628;
-  transition:stroke-dashoffset 1s linear;
-}
-
-.ring-center{
-  position:absolute;
-  inset:0;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-}
-
-.ring-time{
-  font-family:'IBM Plex Mono',monospace;
-  font-size:clamp(24px,7vw,34px);
-  font-weight:700;
-  font-variant-numeric:tabular-nums;
-  color:var(--ink);
-  line-height:1;
-}
-
-.ring-sub{
-  font-size:11.5px;
-  color:var(--ink2);
-  margin-top:4px;
-}
-
-.ic-foot{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-top:14px;
-  padding-top:11px;
-  border-top:1px dashed var(--line);
-  font-family:'IBM Plex Mono',monospace;
-  font-size:10.5px;
-  color:var(--ink2);
-}
-
-.ic-foot .xp{
-  color:var(--pen);
-  font-weight:700;
-}
-
-@media (max-width: 900px) {
-  .hero .wrap {
-    grid-template-columns: 1fr;
-    text-align: center;
-    justify-items: center;
-  }
-
-  .hero .wrap > div:first-child {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .herobtns,
-  .trust {
-    justify-content: center;
-  }
-
-  .index-card {
-    margin: 24px auto 0;
-    transform: rotate(4.3deg);
-  }
-}
-
-@media (max-width: 640px) {
-  .hero {
-    padding-top: 72px;
-  }
-
-  .index-card {
-    width: min(320px, 92vw);
-    padding: 20px 16px 18px;
-  }
-}
-  
-  
-/* ============ SECTION HEADS ============ */
-.sectionhead{max-width:600px; margin:0 auto 56px; text-align:center;}
-.sectionhead .kicker{
-  font-family:var(--mono); font-size:12px; color:var(--accent2); text-transform:uppercase;
-  letter-spacing:.1em; margin-bottom:12px; font-weight:600;
-}
-.sectionhead h2{font-size:clamp(28px,3.6vw,40px); font-weight:800; letter-spacing:-.03em; line-height:1.15;}
-.sectionhead p{margin-top:14px; color:var(--text2); font-size:16px; line-height:1.6;}
-
-/* ============ FEATURE BOOK (signature element) ============ */
-.book-section{background:var(--bg2); border-top:1px solid var(--border); border-bottom:1px solid var(--border);}
-.book-stage{
-  display:flex; flex-direction:column; align-items:center; gap:28px;
-}
-.book{
-  position:relative; width:100%; max-width:400px; aspect-ratio:3/3.6;
-  perspective:1200px;
-}
-.book-page{
-  position:absolute; inset:0;
-  background:linear-gradient(135deg,var(--paper),var(--paper2));
-  border:1px solid var(--border);
-  border-radius:14px;
-  box-shadow:var(--shadow);
-  padding:32px 34px;
-  display:flex;
-  flex-direction:column;
-  justify-content:flex-start;
-  transform-origin:left center;
-  backface-visibility:hidden;
-  opacity:0;
-  transform:rotateY(0deg) scale(.96);
-  z-index:1;
-  pointer-events:none;
-  overflow-y:auto;
-  transition:transform 1.05s cubic-bezier(.65,.05,.36,1), opacity .95s ease;
-}
-.book-page::after{
-  content:'';
-  position:absolute; inset:0; border-radius:inherit;
-  background:linear-gradient(90deg, rgba(0,0,0,.35) 0%, transparent 35%);
-  opacity:0;
-  transition:opacity 1.05s ease;
-  pointer-events:none;
-}
-.book-page.past::after{ opacity:1; }
-.book-page.current{
-  opacity:1;
-  transform:rotateY(0deg) scale(1);
-  z-index:50;
-  pointer-events:auto;
-  transition:transform 1.05s cubic-bezier(.65,.05,.36,1), opacity 1.05s ease .12s;
-}
-.book-page.current::after{ opacity:0; }
-.book-page.past{
-  opacity:0;
-  transform:rotateY(-179deg) scale(1);
-  z-index:2;
-  pointer-events:none;
-  transition:transform 1.05s cubic-bezier(.65,.05,.36,1), opacity .3s ease .75s;
-}
-.book-page .pagenum{
-  position:absolute; bottom:20px; right:28px; font-family:var(--mono); font-size:11px; color:var(--text3);
-}
-.book-page .spine{
-  position:absolute; left:0; top:14px; bottom:14px; width:6px;
-  background:linear-gradient(180deg, var(--border2), var(--border));
-  border-radius:0 4px 4px 0; opacity:.7;
-}
-.book-page .fnum{
-  font-family:var(--mono); font-size:11.5px; color:var(--accent2); font-weight:700; letter-spacing:.08em;
-  text-transform:uppercase; margin-bottom:8px;
-}
-.book-page .rule{
-  width:36px; height:3px; border-radius:3px;
-  background:linear-gradient(90deg,var(--accent),var(--accent3));
-  margin-bottom:18px;
-}
-.book-page h3{font-size:21px; font-weight:800; letter-spacing:-.02em; margin-bottom:12px; line-height:1.25;}
-.book-page p{color:var(--text2); font-size:14px; line-height:1.65;}
-
-.book-nav{display:flex; align-items:center; gap:18px;}
-.bookbtn{
-  width:44px; height:44px; border-radius:50%; border:1px solid var(--border); background:var(--card);
-  display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px;
-  transition:all .2s ease; color:var(--text);
-}
-.bookbtn:hover{border-color:var(--accent); color:var(--accent2); box-shadow:var(--glow2);}
-.bookbtn:disabled{opacity:.35; cursor:not-allowed;}
-.dots{display:flex; gap:7px;}
-.dots span{width:7px; height:7px; border-radius:50%; background:var(--border2); transition:all .3s ease;}
-.dots span.active{background:var(--accent); width:20px; border-radius:5px; box-shadow:var(--glow2);}
-.pageindicator{font-family:var(--mono); font-size:13px; color:var(--text3);}
-
-/* ============ INSTALL STEPS ============ */
-.install-wrap{display:grid; grid-template-columns:.85fr 1.15fr; gap:48px; align-items:center;}
-@media(max-width:860px){ .install-wrap{grid-template-columns:1fr; gap:28px;} }
-
-.install-toggle{
-  display:flex; justify-content:center; gap:8px; margin-bottom:44px;
-}
-.itbtn{
-  font-family:var(--font); font-weight:700; font-size:13.5px;
-  padding:10px 20px; border-radius:100px; border:1px solid var(--border);
-  background:var(--card); color:var(--text2); cursor:pointer;
-  transition:all .2s ease;
-}
-.itbtn:hover{ border-color:var(--accent2); color:var(--text); }
-.itbtn.active{
-  background:linear-gradient(135deg,var(--accent),var(--accent3));
-  color:#fff; border-color:transparent; box-shadow:var(--glow2);
-}
-
-.preview-backdrop{
-  position:relative;
-  display:flex; align-items:center; justify-content:center;
-  padding:20px;
-  border-radius:24px;
-  background:radial-gradient(ellipse 70% 60% at 50% 40%, rgba(59,130,246,.10), transparent 70%);
-  overflow:hidden;
-  min-height:280px;
-}
-.preview-backdrop::before{
-  content:'';
-  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-  width:70%; aspect-ratio:1/1; max-width:300px;
-  border:1px dashed var(--border); border-radius:50%;
-  animation:spin 40s linear infinite;
-}
-@keyframes spin{ from{transform:translate(-50%,-50%) rotate(0deg);} to{transform:translate(-50%,-50%) rotate(360deg);} }
-@media(max-width:480px){
-  .preview-backdrop::before{ display:none; }
-}
-
-.phoneframe{
-  width:240px;
-  max-width:62vw;
-  margin:0 auto;
-  background:var(--bg2);
-  border:4px solid var(--bg3);   /* Reduced bezel */
-  border-radius:26px;
-  padding:6px;                   /* Less padding = bigger screen */
-  box-shadow:var(--shadow);
-  position:relative;
-  z-index:1;
-}
-
-.phoneframe .notch{
-  width:52px;
-  height:10px;
-  background:var(--bg3);
-  border-radius:0 0 10px 10px;
-  margin:0 auto 6px;
-}
-
-.phonescreen{
-  aspect-ratio:9/19.5;           /* Taller display */
-  border-radius:20px;
-  overflow:hidden;
-  position:relative;
-}
-
-.phonescreen img{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  display:block;
-}
-  
-.phonescreen-fallback{
-  position:absolute; inset:0;
-  background:
-    repeating-linear-gradient(135deg, var(--card), var(--card) 10px, var(--card2) 10px, var(--card2) 20px);
-  border:1.5px dashed var(--border2);
-  display:flex; align-items:center; justify-content:center; flex-direction:column; gap:8px;
-  color:var(--text3); font-family:var(--mono); font-size:12.5px; text-align:center; padding:20px;
-}
-
-.deskframe{
-  width:100%; max-width:500px; margin:0 auto;
-  background:var(--bg2); border:1px solid var(--border); border-radius:14px;
-  box-shadow:var(--shadow); overflow:hidden; position:relative; z-index:1;
-}
-.deskbar{
-  display:flex; gap:6px; padding:10px 14px; background:var(--bg3);
-  border-bottom:1px solid var(--border);
-}
-.deskbar span{ width:10px; height:10px; border-radius:50%; background:var(--border2); }
-.deskscreen{
-  aspect-ratio:16/17; position:relative; overflow:hidden;
-}
-.deskscreen img{
-  width:100%; height:100%; object-fit:cover; display:block;
-}
-
-.steps-track{display:flex; flex-direction:column; gap:10px;}
-.step-item{
-  display:flex; gap:12px; padding:12px 14px; border-radius:12px;
-  border:1px solid var(--border); background:var(--card);
-  opacity:.45; transition:all .35s ease; cursor:pointer;
-}
-.step-item.active{
-  opacity:1; border-color:var(--accent); background:var(--card2); box-shadow:var(--glow2);
-}
-.step-badge{
-  width:30px; height:30px; border-radius:9px; background:var(--bg3); border:1px solid var(--border);
-  display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-weight:700;
-  font-size:13px; flex-shrink:0; color:var(--text2);
-}
-.step-item.active .step-badge{ background:var(--accent); color:#fff; border-color:var(--accent); }
-.step-item h4{font-size:14px; font-weight:700; margin-bottom:2px;}
-.step-item p{font-size:12.5px; color:var(--text2); line-height:1.4;}
-
-.install-navbar{
-  display:flex; align-items:center; justify-content:center; gap:18px;
-  margin-bottom:16px;
-}
-.navcirc{
-  width:40px; height:40px; border-radius:50%; border:1px solid var(--border2);
-  background:var(--card); color:var(--text); font-size:16px; cursor:pointer;
-  display:flex; align-items:center; justify-content:center; flex-shrink:0;
-  transition:all .2s ease;
-}
-.navcirc:hover{ border-color:var(--accent); color:var(--accent2); box-shadow:var(--glow2); }
-.navcirc:disabled{ opacity:.35; cursor:not-allowed; }
-.navcirc-label{
-  font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
-  color:var(--text3); font-weight:600; min-width:56px; text-align:center;
-}
-
-/* ============ DEVELOPER SECTION ============ */
-.dev-card{
-  display:flex; align-items:center; gap:28px; background:var(--card); border:1px solid var(--border);
-  border-radius:20px; padding:36px; box-shadow:var(--shadow2);
-}
-@media(max-width:640px){ .dev-card{flex-direction:column; text-align:center;} }
-.dev-avatar{
-  width:84px; height:84px; border-radius:50%; flex-shrink:0;
-  background:linear-gradient(135deg,var(--accent),var(--accent4));
-  display:flex; align-items:center; justify-content:center;
-  font-weight:800; font-size:30px; color:#fff; box-shadow:var(--glow);
-}
-.dev-info h3{font-size:20px; font-weight:800; margin-bottom:4px;}
-.dev-info .role{color:var(--accent2); font-size:13.5px; font-weight:600; font-family:var(--mono); margin-bottom:10px;}
-.dev-info p{color:var(--text2); font-size:14.5px; line-height:1.55; max-width:520px;}
-.dev-links{display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;}
-@media(max-width:640px){ .dev-links{justify-content:center;} }
-.dev-links a{
-  font-size:13px; font-weight:600; padding:8px 14px; border-radius:100px;
-  border:1px solid var(--border); color:var(--text2); transition:all .2s ease;
-}
-.dev-links a:hover{border-color:var(--accent); color:var(--accent2);}
-
-.support-box{
-  margin-top:28px; text-align:center; padding:34px; border-radius:20px;
-  background:linear-gradient(135deg, rgba(59,130,246,.08), transparent);
-  border:1px solid var(--border);
-}
-.support-box h3{font-size:20px; font-weight:800; margin-bottom:8px;}
-.support-box p{color:var(--text2); font-size:14.5px; margin-bottom:22px; max-width:440px; margin-inline:auto;}
-
-.support-options{
-  display:none;
-  flex-direction:column; gap:10px; max-width:380px; margin:0 auto;
-  animation:fadein .35s ease;
-}
-.support-options.show{ display:flex; }
-@keyframes fadein{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
-.support-opt{
-  display:flex; align-items:center; gap:14px; width:100%;
-  background:var(--card); border:1px solid var(--border); border-radius:14px;
-  padding:14px 16px; cursor:pointer; text-align:left;
-  transition:all .2s ease; color:var(--text); font-family:var(--font);
-}
-.support-opt:hover{ border-color:var(--accent); box-shadow:var(--glow2); transform:translateY(-2px); }
-.support-opt .so-ic{ font-size:22px; flex-shrink:0; }
-.support-opt .so-text{ display:flex; flex-direction:column; gap:2px; flex:1; }
-.support-opt .so-text strong{ font-size:14.5px; font-weight:700; }
-.support-opt .so-text span{ font-size:12.5px; color:var(--text3); font-family:var(--mono); }
-.support-opt .so-action{
-  font-size:12px; font-weight:700; color:var(--accent2);
-  background:rgba(59,130,246,.1); padding:5px 10px; border-radius:100px; flex-shrink:0;
-}
-.support-back{
-  background:none; border:none; color:var(--text3); font-size:13px; font-weight:600;
-  cursor:pointer; margin-top:4px; padding:6px; font-family:var(--font);
-}
-.support-back:hover{ color:var(--accent2); }
-  
-  /* ===== Radio Credits ===== */
-
-.radio-credits{
-    padding:20px 0 36px;
-    margin-top:-15px;
-}
-
-.radio-credits-card{
-    max-width:760px;
-    margin:0 auto;
-    padding:18px 24px;
-    border:1px solid var(--border);
-    border-radius:16px;
-    background:linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--card) 90%, transparent),
-        color-mix(in srgb, var(--bg2) 95%, transparent)
-    );
-    text-align:center;
-}
-
-.radio-title{
-    font-size:15px;
-    font-weight:700;
-    letter-spacing:.04em;
-    color:var(--accent2);
-    margin-bottom:10px;
-}
-
-.radio-credits-card p{
-    font-size:14px;
-    line-height:1.7;
-    color:var(--text2);
-}
-
-.radio-credits-card strong{
-    color:var(--text);
-    font-weight:600;
-}
-
-@media (max-width:640px){
-    .radio-credits{
-        padding:18px 0 28px;
+    :root {
+        --bg: #0b0d12;
+        --bg2: #101319;
+        --bg3: #171a22;
+        --card: #13161d;
+        --card2: #1a1e27;
+        --border: #222631;
+        --border2: #323847;
+        --accent: #3b82f6;
+        --accent2: #60a5fa;
+        --accent3: #2563eb;
+        --accent4: #1d4ed8;
+        --text: #e5e7eb;
+        --text2: #9398a3;
+        --text3: #5b6070;
+        --success: #22c55e;
+        --warn: #f59e0b;
+        --danger: #ef4444;
+        --shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        --shadow2: 0 4px 16px rgba(0, 0, 0, 0.3);
+        --radius: 16px;
+        --radius-sm: 10px;
+        --radius-xs: 8px;
+        --font: "Plus Jakarta Sans", system-ui, sans-serif;
+        --mono: "JetBrains Mono", monospace;
+        --glow: 0 0 20px rgba(59, 130, 246, 0.25);
+        --glow2: 0 0 16px rgba(59, 130, 246, 0.15);
+        --paper: #13161d;
+        --paper2: #1a1e27;
+        --ink: #e5e7eb;
+        --ink2: #9398a3;
+        --ink3: #5b6070;
+        --line: #2f3544;
+        --pen: #3b82f6;
+        --shadow-c: rgba(0, 0, 0, 0.55);
+        color-scheme: dark;
     }
-
-    .radio-credits-card{
-        padding:16px 18px;
+    [data-theme="light"] {
+        --bg: #e1eaf7;
+        --bg2: #ebedf0;
+        --bg3: #ced4e0;
+        --card: #e8f1ff;
+        --card2: #f7f8fc;
+        --border: #d0d6e2;
+        --border2: #a8b4cc;
+        --accent: #2060b8;
+        --accent2: #1a50a0;
+        --accent3: #3d8fe0;
+        --accent4: #133e88;
+        --text: #111827;
+        --text2: #4b5563;
+        --text3: #6b7280;
+        --success: #16a05e;
+        --warn: #d4880f;
+        --danger: #dc2626;
+        --shadow: 0 8px 32px rgba(20, 30, 60, 0.1);
+        --shadow2: 0 4px 16px rgba(20, 30, 60, 0.08);
+        --paper: #ffffff;
+        --paper2: #f7f8fc;
+        --ink: #111827;
+        --ink2: #4b5563;
+        --ink3: #6b7280;
+        --line: #c9d3e3;
+        --pen: #2060b8;
+        --shadow-c: rgba(20, 30, 60, 0.15);
+        color-scheme: light;
     }
-
-    .radio-credits-card p{
-        font-size:13px;
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
     }
-}
-
-/* ============ FOOTER ============ */
-footer{border-top:1px solid var(--border); padding:36px 0; margin-top:30px;}
-footer .wrap{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;}
-footer .fbrand{display:flex; align-items:center; gap:8px; font-weight:700; font-size:14px;}
-footer .fbrand img{width:22px; height:22px; border-radius:6px;}
-footer p{color:var(--text3); font-size:13px;}
-
-/* placeholder note badge */
-.ph-tag{
-  position:absolute; top:8px; left:8px; font-family:var(--mono); font-size:9.5px;
-  background:var(--danger); color:#fff; padding:2px 7px; border-radius:5px; letter-spacing:.02em;
-  opacity:.85;
-}
+    html {
+        scroll-behavior: smooth;
+    }
+    body {
+        font-family: var(--font);
+        background: var(--bg);
+        color: var(--text);
+        transition:
+            background 0.35s ease,
+            color 0.35s ease;
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
+    }
+    body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        background: radial-gradient(ellipse 55% 38% at 82% 6%, rgba(59, 130, 246, 0.14) 0, transparent 62%),
+            radial-gradient(ellipse 45% 30% at 5% 85%, rgba(59, 130, 246, 0.08) 0, transparent 60%);
+    }
+    [data-theme="light"] body::before {
+        background: radial-gradient(ellipse 55% 38% at 82% 6%, rgba(32, 96, 184, 0.07) 0, transparent 62%),
+            radial-gradient(ellipse 45% 30% at 5% 85%, rgba(32, 96, 184, 0.05) 0, transparent 60%);
+    }
+    img {
+        max-width: 100%;
+        display: block;
+    }
+    a {
+        color: inherit;
+        text-decoration: none;
+    }
+    .wrap {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 0 24px;
+    }
+    section {
+        position: relative;
+        padding: 120px 0;
+    }
+    @media (max-width: 720px) {
+        section {
+            padding: 76px 0;
+        }
+    }
+    .nav {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: color-mix(in srgb, var(--bg2) 88%, transparent);
+        backdrop-filter: blur(14px);
+        border-bottom: 1px solid var(--border);
+    }
+    .nav .wrap {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 64px;
+    }
+    .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 800;
+        font-size: 18px;
+        letter-spacing: -0.02em;
+    }
+    .brand img {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        box-shadow: var(--glow2);
+    }
+    .navlinks {
+        display: flex;
+        align-items: center;
+        gap: 28px;
+        font-size: 14px;
+        color: var(--text2);
+        font-weight: 600;
+    }
+    .navlinks a:hover {
+        color: var(--accent2);
+    }
+    .themebtn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 1px solid var(--border);
+        background: var(--bg3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        font-size: 17px;
+    }
+    .themebtn:hover {
+        border-color: var(--accent);
+        box-shadow: var(--glow2);
+    }
+    .cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: linear-gradient(135deg, var(--accent), var(--accent3));
+        color: #fff;
+        font-weight: 700;
+        font-size: 14.5px;
+        padding: 12px 22px;
+        border-radius: 12px;
+        border: none;
+        cursor: pointer;
+        box-shadow: var(--glow);
+        transition:
+            transform 0.2s ease,
+            box-shadow 0.2s ease;
+    }
+    .cta:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0 28px rgba(59, 130, 246, 0.4);
+    }
+    .cta.ghost {
+        background: 0 0;
+        color: var(--text);
+        border: 1px solid var(--border2);
+        box-shadow: none;
+    }
+    .cta.ghost:hover {
+        border-color: var(--accent);
+        color: var(--accent2);
+    }
+    .cta.apk {
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        box-shadow: 0 0 20px rgba(34, 197, 94, 0.25);
+    }
+    .cta.apk:hover {
+        box-shadow: 0 0 28px rgba(34, 197, 94, 0.4);
+    }
+    @media (max-width: 720px) {
+        .nav .wrap {
+            gap: 10px;
+        }
+        .navlinks {
+            gap: 10px;
+            margin-left: auto;
+        }
+        .navlinks > a:not(.nav-app-btn):not(.nav-apk-btn) {
+            display: none;
+        }
+        .nav-app-btn,
+        .nav-apk-btn {
+            padding: 8px 12px !important;
+            font-size: 12.5px !important;
+            border-radius: 10px !important;
+            white-space: nowrap;
+        }
+        .themebtn {
+            width: 38px;
+            height: 38px;
+            font-size: 16px;
+        }
+    }
+    .hero {
+        padding-top: 88px;
+        padding-bottom: 60px;
+    }
+    .hero .wrap {
+        display: grid;
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: 56px;
+        align-items: center;
+    }
+    @media (max-width: 900px) {
+        .hero .wrap {
+            grid-template-columns: 1fr;
+            text-align: center;
+        }
+    }
+    .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent2);
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.25);
+        padding: 6px 12px;
+        border-radius: 100px;
+        margin-bottom: 22px;
+    }
+    .eyebrow .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--success);
+        box-shadow: 0 0 8px var(--success);
+    }
+    h1.headline {
+        font-size: clamp(38px, 5.2vw, 64px);
+        font-weight: 800;
+        letter-spacing: -0.035em;
+        line-height: 1.04;
+    }
+    h1.headline em {
+        font-style: normal;
+        background: linear-gradient(135deg, var(--accent2), var(--accent));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+    .sub {
+        margin-top: 20px;
+        font-size: 18px;
+        color: var(--text2);
+        line-height: 1.6;
+        max-width: 480px;
+    }
+    @media (max-width: 900px) {
+        .sub {
+            margin-inline: auto;
+        }
+    }
+    .herobtns {
+        display: flex;
+        gap: 14px;
+        margin-top: 34px;
+        flex-wrap: wrap;
+    }
+    @media (max-width: 900px) {
+        .herobtns {
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+    }
+    .trust {
+        margin-top: 34px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        color: var(--text3);
+        font-size: 13px;
+    }
+    @media (max-width: 900px) {
+        .trust {
+            justify-content: center;
+        }
+    }
+    .trust .stars {
+        color: var(--warn);
+        letter-spacing: 2px;
+    }
+    .index-card {
+        position: relative;
+        background: var(--card);
+        border: 2px solid var(--ink);
+        border-radius: 6px;
+        width: min(300px, 88vw);
+        padding: 22px 20px 20px;
+        transform: rotate(4deg);
+        box-shadow: 6px 8px 0 var(--shadow-c);
+    }
+    @media (min-width: 641px) {
+        .index-card {
+            width: min(340px, 90vw);
+            padding: 26px 24px 24px;
+            transform: rotate(5deg);
+            box-shadow: 8px 10px 0 var(--shadow-c);
+        }
+    }
+    .tape {
+        position: absolute;
+        top: -13px;
+        left: 50%;
+        transform: translateX(-50%) rotate(-3deg);
+        width: 78px;
+        height: 24px;
+        background: rgba(200, 180, 90, 0.35);
+        border: 1px solid rgba(160, 140, 60, 0.4);
+    }
+    .index-card .ic-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 10px;
+        color: var(--ink3);
+        border-bottom: 1px dashed var(--line);
+        padding-bottom: 9px;
+        margin-bottom: 14px;
+    }
+    .ring-wrap {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1;
+        max-width: 200px;
+        margin: 0 auto;
+    }
+    @media (min-width: 641px) {
+        .ring-wrap {
+            max-width: 240px;
+        }
+    }
+    .ring {
+        width: 100%;
+        height: 100%;
+        transform: rotate(-90deg);
+    }
+    .ring-track {
+        fill: none;
+        stroke: var(--line);
+        stroke-width: 9;
+    }
+    .ring-fill {
+        fill: none;
+        stroke: var(--pen);
+        stroke-width: 9;
+        stroke-linecap: round;
+        stroke-dasharray: 628;
+        transition: stroke-dashoffset 1s linear;
+    }
+    .ring-center {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+    .ring-time {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: clamp(24px, 7vw, 34px);
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: var(--ink);
+        line-height: 1;
+    }
+    .ring-sub {
+        font-size: 11.5px;
+        color: var(--ink2);
+        margin-top: 4px;
+    }
+    .ic-foot {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 14px;
+        padding-top: 11px;
+        border-top: 1px dashed var(--line);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 10.5px;
+        color: var(--ink2);
+    }
+    .ic-foot .xp {
+        color: var(--pen);
+        font-weight: 700;
+    }
+    @media (max-width: 900px) {
+        .hero .wrap {
+            grid-template-columns: 1fr;
+            text-align: center;
+            justify-items: center;
+        }
+        .hero .wrap > div:first-child {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .herobtns,
+        .trust {
+            justify-content: center;
+        }
+        .index-card {
+            margin: 24px auto 0;
+            transform: rotate(4.3deg);
+        }
+    }
+    @media (max-width: 640px) {
+        .hero {
+            padding-top: 72px;
+        }
+        .index-card {
+            width: min(320px, 92vw);
+            padding: 20px 16px 18px;
+        }
+    }
+    .sectionhead {
+        max-width: 600px;
+        margin: 0 auto 56px;
+        text-align: center;
+    }
+    .sectionhead .kicker {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--accent2);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-bottom: 12px;
+        font-weight: 600;
+    }
+    .sectionhead h2 {
+        font-size: clamp(28px, 3.6vw, 40px);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1.15;
+    }
+    .sectionhead p {
+        margin-top: 14px;
+        color: var(--text2);
+        font-size: 16px;
+        line-height: 1.6;
+    }
+    .book-section {
+        background: var(--bg2);
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+    }
+    .book-stage {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 28px;
+    }
+    .book {
+        position: relative;
+        width: 100%;
+        max-width: 400px;
+        aspect-ratio: 3/3.6;
+        perspective: 1200px;
+    }
+    .book-page {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, var(--paper), var(--paper2));
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        padding: 32px 34px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        transform-origin: left center;
+        backface-visibility: hidden;
+        opacity: 0;
+        transform: rotateY(0) scale(0.96);
+        z-index: 1;
+        pointer-events: none;
+        overflow-y: auto;
+        transition:
+            transform 1.05s cubic-bezier(0.65, 0.05, 0.36, 1),
+            opacity 0.95s ease;
+    }
+    .book-page::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: linear-gradient(90deg, rgba(0, 0, 0, 0.35) 0, transparent 35%);
+        opacity: 0;
+        transition: opacity 1.05s ease;
+        pointer-events: none;
+    }
+    .book-page.past::after {
+        opacity: 1;
+    }
+    .book-page.current {
+        opacity: 1;
+        transform: rotateY(0) scale(1);
+        z-index: 50;
+        pointer-events: auto;
+        transition:
+            transform 1.05s cubic-bezier(0.65, 0.05, 0.36, 1),
+            opacity 1.05s ease 0.12s;
+    }
+    .book-page.current::after {
+        opacity: 0;
+    }
+    .book-page.past {
+        opacity: 0;
+        transform: rotateY(-179deg) scale(1);
+        z-index: 2;
+        pointer-events: none;
+        transition:
+            transform 1.05s cubic-bezier(0.65, 0.05, 0.36, 1),
+            opacity 0.3s ease 0.75s;
+    }
+    .book-page .pagenum {
+        position: absolute;
+        bottom: 20px;
+        right: 28px;
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--text3);
+    }
+    .book-page .spine {
+        position: absolute;
+        left: 0;
+        top: 14px;
+        bottom: 14px;
+        width: 6px;
+        background: linear-gradient(180deg, var(--border2), var(--border));
+        border-radius: 0 4px 4px 0;
+        opacity: 0.7;
+    }
+    .book-page .fnum {
+        font-family: var(--mono);
+        font-size: 11.5px;
+        color: var(--accent2);
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+    }
+    .book-page .rule {
+        width: 36px;
+        height: 3px;
+        border-radius: 3px;
+        background: linear-gradient(90deg, var(--accent), var(--accent3));
+        margin-bottom: 18px;
+    }
+    .book-page h3 {
+        font-size: 21px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin-bottom: 12px;
+        line-height: 1.25;
+    }
+    .book-page p {
+        color: var(--text2);
+        font-size: 14px;
+        line-height: 1.65;
+    }
+    .book-nav {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+    }
+    .bookbtn {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 1px solid var(--border);
+        background: var(--card);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 18px;
+        transition: all 0.2s ease;
+        color: var(--text);
+    }
+    .bookbtn:hover {
+        border-color: var(--accent);
+        color: var(--accent2);
+        box-shadow: var(--glow2);
+    }
+    .bookbtn:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+    }
+    .dots {
+        display: flex;
+        gap: 7px;
+    }
+    .dots span {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--border2);
+        transition: all 0.3s ease;
+    }
+    .dots span.active {
+        background: var(--accent);
+        width: 20px;
+        border-radius: 5px;
+        box-shadow: var(--glow2);
+    }
+    .pageindicator {
+        font-family: var(--mono);
+        font-size: 13px;
+        color: var(--text3);
+    }
+    .install-wrap {
+        display: grid;
+        grid-template-columns: 0.85fr 1.15fr;
+        gap: 48px;
+        align-items: center;
+    }
+    @media (max-width: 860px) {
+        .install-wrap {
+            grid-template-columns: 1fr;
+            gap: 28px;
+        }
+    }
+    .install-toggle {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 44px;
+        flex-wrap: wrap;
+    }
+    .itbtn {
+        font-family: var(--font);
+        font-weight: 700;
+        font-size: 13.5px;
+        padding: 10px 20px;
+        border-radius: 100px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--text2);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .itbtn:hover {
+        border-color: var(--accent2);
+        color: var(--text);
+    }
+    .itbtn.active {
+        background: linear-gradient(135deg, var(--accent), var(--accent3));
+        color: #fff;
+        border-color: transparent;
+        box-shadow: var(--glow2);
+    }
+    .itbtn.active[data-mode="apk"] {
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+    }
+    .preview-backdrop {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        border-radius: 24px;
+        background: radial-gradient(ellipse 70% 60% at 50% 40%, rgba(59, 130, 246, 0.1), transparent 70%);
+        overflow: hidden;
+        min-height: 280px;
+    }
+    .preview-backdrop::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 70%;
+        aspect-ratio: 1/1;
+        max-width: 300px;
+        border: 1px dashed var(--border);
+        border-radius: 50%;
+        animation: spin 40s linear infinite;
+    }
+    @keyframes spin {
+        from {
+            transform: translate(-50%, -50%) rotate(0);
+        }
+        to {
+            transform: translate(-50%, -50%) rotate(360deg);
+        }
+    }
+    @media (max-width: 480px) {
+        .preview-backdrop::before {
+            display: none;
+        }
+    }
+    .phoneframe {
+        width: 240px;
+        max-width: 62vw;
+        margin: 0 auto;
+        background: var(--bg2);
+        border: 4px solid var(--bg3);
+        border-radius: 26px;
+        padding: 6px;
+        box-shadow: var(--shadow);
+        position: relative;
+        z-index: 1;
+    }
+    .phoneframe .notch {
+        width: 52px;
+        height: 10px;
+        background: var(--bg3);
+        border-radius: 0 0 10px 10px;
+        margin: 0 auto 6px;
+    }
+    .phonescreen {
+        aspect-ratio: 9/19.5;
+        border-radius: 20px;
+        overflow: hidden;
+        position: relative;
+    }
+    .phonescreen img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    .phonescreen-fallback {
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+            135deg,
+            var(--card),
+            var(--card) 10px,
+            var(--card2) 10px,
+            var(--card2) 20px
+        );
+        border: 1.5px dashed var(--border2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 8px;
+        color: var(--text3);
+        font-family: var(--mono);
+        font-size: 12.5px;
+        text-align: center;
+        padding: 20px;
+    }
+    .deskframe {
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto;
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        position: relative;
+        z-index: 1;
+    }
+    .deskbar {
+        display: flex;
+        gap: 6px;
+        padding: 10px 14px;
+        background: var(--bg3);
+        border-bottom: 1px solid var(--border);
+    }
+    .deskbar span {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--border2);
+    }
+    .deskscreen {
+        aspect-ratio: 16/17;
+        position: relative;
+        overflow: hidden;
+    }
+    .deskscreen img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    .steps-track {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .step-item {
+        display: flex;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        opacity: 0.45;
+        transition: all 0.35s ease;
+        cursor: pointer;
+    }
+    .step-item.active {
+        opacity: 1;
+        border-color: var(--accent);
+        background: var(--card2);
+        box-shadow: var(--glow2);
+    }
+    .step-badge {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--mono);
+        font-weight: 700;
+        font-size: 13px;
+        flex-shrink: 0;
+        color: var(--text2);
+    }
+    .step-item.active .step-badge {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+    }
+    .step-item h4 {
+        font-size: 14px;
+        font-weight: 700;
+        margin-bottom: 2px;
+    }
+    .step-item p {
+        font-size: 12.5px;
+        color: var(--text2);
+        line-height: 1.4;
+    }
+    .install-navbar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        margin-bottom: 16px;
+    }
+    .navcirc {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 1px solid var(--border2);
+        background: var(--card);
+        color: var(--text);
+        font-size: 16px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: all 0.2s ease;
+    }
+    .navcirc:hover {
+        border-color: var(--accent);
+        color: var(--accent2);
+        box-shadow: var(--glow2);
+    }
+    .navcirc:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+    }
+    .navcirc-label {
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text3);
+        font-weight: 600;
+        min-width: 56px;
+        text-align: center;
+    }
+    .dev-card {
+        display: flex;
+        align-items: center;
+        gap: 28px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 36px;
+        box-shadow: var(--shadow2);
+    }
+    @media (max-width: 640px) {
+        .dev-card {
+            flex-direction: column;
+            text-align: center;
+        }
+    }
+    .dev-avatar {
+        width: 84px;
+        height: 84px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        background: linear-gradient(135deg, var(--accent), var(--accent4));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 30px;
+        color: #fff;
+        box-shadow: var(--glow);
+    }
+    .dev-info h3 {
+        font-size: 20px;
+        font-weight: 800;
+        margin-bottom: 4px;
+    }
+    .dev-info .role {
+        color: var(--accent2);
+        font-size: 13.5px;
+        font-weight: 600;
+        font-family: var(--mono);
+        margin-bottom: 10px;
+    }
+    .dev-info p {
+        color: var(--text2);
+        font-size: 14.5px;
+        line-height: 1.55;
+        max-width: 520px;
+    }
+    .dev-links {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+        flex-wrap: wrap;
+    }
+    @media (max-width: 640px) {
+        .dev-links {
+            justify-content: center;
+        }
+    }
+    .dev-links a {
+        font-size: 13px;
+        font-weight: 600;
+        padding: 8px 14px;
+        border-radius: 100px;
+        border: 1px solid var(--border);
+        color: var(--text2);
+        transition: all 0.2s ease;
+    }
+    .dev-links a:hover {
+        border-color: var(--accent);
+        color: var(--accent2);
+    }
+    .support-box {
+        margin-top: 28px;
+        text-align: center;
+        padding: 34px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), transparent);
+        border: 1px solid var(--border);
+    }
+    .support-box h3 {
+        font-size: 20px;
+        font-weight: 800;
+        margin-bottom: 8px;
+    }
+    .support-box p {
+        color: var(--text2);
+        font-size: 14.5px;
+        margin-bottom: 22px;
+        max-width: 440px;
+        margin-inline: auto;
+    }
+    .support-options {
+        display: none;
+        flex-direction: column;
+        gap: 10px;
+        max-width: 380px;
+        margin: 0 auto;
+        animation: fadein 0.35s ease;
+    }
+    .support-options.show {
+        display: flex;
+    }
+    @keyframes fadein {
+        from {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    .support-opt {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        width: 100%;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 14px 16px;
+        cursor: pointer;
+        text-align: left;
+        transition: all 0.2s ease;
+        color: var(--text);
+        font-family: var(--font);
+    }
+    .support-opt:hover {
+        border-color: var(--accent);
+        box-shadow: var(--glow2);
+        transform: translateY(-2px);
+    }
+    .support-opt .so-ic {
+        font-size: 22px;
+        flex-shrink: 0;
+    }
+    .support-opt .so-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        flex: 1;
+    }
+    .support-opt .so-text strong {
+        font-size: 14.5px;
+        font-weight: 700;
+    }
+    .support-opt .so-text span {
+        font-size: 12.5px;
+        color: var(--text3);
+        font-family: var(--mono);
+    }
+    .support-opt .so-action {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--accent2);
+        background: rgba(59, 130, 246, 0.1);
+        padding: 5px 10px;
+        border-radius: 100px;
+        flex-shrink: 0;
+    }
+    .support-back {
+        background: 0 0;
+        border: none;
+        color: var(--text3);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 4px;
+        padding: 6px;
+        font-family: var(--font);
+    }
+    .support-back:hover {
+        color: var(--accent2);
+    }
+    .radio-credits {
+        padding: 20px 0 36px;
+        margin-top: -15px;
+    }
+    .radio-credits-card {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 18px 24px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--card) 90%, transparent),
+            color-mix(in srgb, var(--bg2) 95%, transparent)
+        );
+        text-align: center;
+    }
+    .radio-title {
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        color: var(--accent2);
+        margin-bottom: 10px;
+    }
+    .radio-credits-card p {
+        font-size: 14px;
+        line-height: 1.7;
+        color: var(--text2);
+    }
+    .radio-credits-card strong {
+        color: var(--text);
+        font-weight: 600;
+    }
+    @media (max-width: 640px) {
+        .radio-credits {
+            padding: 18px 0 28px;
+        }
+        .radio-credits-card {
+            padding: 16px 18px;
+        }
+        .radio-credits-card p {
+            font-size: 13px;
+        }
+    }
+    .apk-panel {
+        text-align: center;
+        padding: 40px 30px;
+        border-radius: 20px;
+        border: 1px dashed var(--border2);
+        background: radial-gradient(ellipse 70% 60% at 50% 30%, rgba(34, 197, 94, 0.08), transparent 70%);
+    }
+    .apk-panel .apk-ic {
+        font-size: 44px;
+        margin-bottom: 14px;
+    }
+    .apk-panel h3 {
+        font-size: 19px;
+        font-weight: 800;
+        margin-bottom: 8px;
+    }
+    .apk-panel p {
+        color: var(--text2);
+        font-size: 14px;
+        line-height: 1.6;
+        max-width: 360px;
+        margin: 0 auto 22px;
+    }
+    .apk-meta {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        margin-top: 18px;
+        font-family: var(--mono);
+        font-size: 11.5px;
+        color: var(--text3);
+        flex-wrap: wrap;
+    }
+    footer {
+        border-top: 1px solid var(--border);
+        padding: 36px 0;
+        margin-top: 30px;
+    }
+    footer .wrap {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    footer .fbrand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 700;
+        font-size: 14px;
+    }
+    footer .fbrand img {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+    }
+    footer p {
+        color: var(--text3);
+        font-size: 13px;
+    }
+    .ph-tag {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        font-family: var(--mono);
+        font-size: 9.5px;
+        background: var(--danger);
+        color: #fff;
+        padding: 2px 7px;
+        border-radius: 5px;
+        letter-spacing: 0.02em;
+        opacity: 0.85;
+    }
 </style>
 </head>
 <body data-theme="dark">
-
-<!-- ============ NAV ============ -->
 <nav class="nav">
-  <div class="wrap">
-    <div class="brand">
-      <img src="https://foclock.vercel.app/clogo.png" alt="Foc Lock" />
-      Foc Lock
+    <div class="wrap">
+        <div class="brand"><img src="https://foclock.vercel.app/clogo.png" alt="Foc Lock" /> Foc Lock</div>
+        <div class="navlinks">
+            <a href="#features">Features</a> <a href="#install">Install</a> <a href="#developer">Developer</a>
+            <button class="themebtn" id="themeToggle" aria-label="Toggle theme">🌙</button>
+            <a
+                class="cta ghost nav-apk-btn"
+                href="https://foclock.vercel.app/foclock.apk"
+                download
+                style="padding: 10px 18px"
+                >⬇ APK</a
+            >
+            <a class="cta nav-app-btn" href="https://github.com/Bitto29/foc-lock/releases/download/v1.0.0/FocLock.v1.0.0.apk" style="padding: 10px 18px"
+                >WebApp</a
+            >
+        </div>
     </div>
-    <div class="navlinks">
-      <a href="#features">Features</a>
-      <a href="#install">Install</a>
-      <a href="#developer">Developer</a>
-      <button class="themebtn" id="themeToggle" aria-label="Toggle theme">🌙</button>
-      <a class="cta nav-app-btn" href="https://foclock.vercel.app/live.html" style="padding:10px 18px;">Go to App</a>
-    </div>
-  </div>
 </nav>
-
-<!-- ============ HERO ============ -->
 <header class="hero">
-  <div class="wrap">
-    <div>
-      <!--<div class="eyebrow"><span class="dot"></span> Live focus sessions right now</div>-->
-      <h1 class="headline">Lock in.<br>Study <em>deep.</em></h1>
-      <p class="sub">Foc Lock is the focus tracker built for students who actually want to finish the session — timers, XP, an AI study buddy, and friends keeping each other honest. All in one web app.</p>
-      <div class="herobtns">
-        <a class="cta" href="https://foclock.vercel.app/live.html">Go to app →</a>
-        <a class="cta ghost" href="#install">How to install</a>
-      </div>
-      <div class="trust">
-        <span class="stars">★★★★★</span>
-        <span>Built by a student, for students</span>
-      </div>
+    <div class="wrap">
+        <div>
+            <!--<div class="eyebrow"><span class="dot"></span> Now available as a native Android app</div>-->
+            <h1 class="headline">Lock in.<br />Study <em>deep.</em></h1>
+            <p class="sub">
+                Foc Lock is the focus tracker built for students who actually want to finish the session —
+                timers, XP, an AI study buddy, and friends keeping each other honest. Use it in your browser or
+                install it as an Android app.
+            </p>
+            <div class="herobtns">
+                <a class="cta" href="https://foclock.vercel.app/live.html">Go to Webapp →</a>
+                <a class="cta apk" href="https://github.com/Bitto29/foc-lock/releases/download/v1.0.0/FocLock.v1.0.0.apk" download>⬇ Download APK</a>
+                <a class="cta ghost" href="#install">How to install</a>
+            </div>
+            <div class="trust">
+                <span class="stars">★★★★★</span> <span>Built by a student, for students</span>
+            </div>
+        </div>
+        <div class="index-card">
+            <div class="tape"></div>
+            <div class="ic-head"><span>SESSION #0427</span> <span>PHYSICS</span></div>
+            <div class="ring-wrap">
+                <svg class="ring" viewBox="0 0 220 220">
+                    <circle class="ring-track" cx="110" cy="110" r="100"></circle>
+                    <circle class="ring-fill" cx="110" cy="110" r="100"></circle>
+                </svg>
+                <div class="ring-center">
+                    <div class="ring-time">11:50</div>
+                    <div class="ring-sub">Elapsed: 29m 10s</div>
+                </div>
+            </div>
+            <div class="ic-foot"><span>Session XP</span> <span class="xp">+29 XP</span></div>
+        </div>
     </div>
-
-    <div class="index-card">
-  <div class="tape"></div>
-
-  <div class="ic-head">
-    <span>SESSION #0427</span>
-    <span>PHYSICS</span>
-  </div>
-
-  <div class="ring-wrap">
-    <svg class="ring" viewBox="0 0 220 220">
-      <circle class="ring-track" cx="110" cy="110" r="100"></circle>
-      <circle class="ring-fill" cx="110" cy="110" r="100"></circle>
-    </svg>
-
-    <div class="ring-center">
-      <div class="ring-time">11:50</div>
-      <div class="ring-sub">Elapsed: 29m 10s</div>
-    </div>
-  </div>
-
-  <div class="ic-foot">
-    <span>Session XP</span>
-    <span class="xp">+29 XP</span>
-  </div>
-  </div>
 </header>
-
-<!-- ============ FEATURE BOOK ============ -->
 <section class="book-section" id="features">
-  <div class="wrap">
-    <div class="sectionhead">
-      <div class="kicker">Turn the page</div>
-      <h2>Every feature, one page at a time</h2>
-      <p>Foc Lock packs in a lot. Flip through like a study notebook — here's what's inside.</p>
+    <div class="wrap">
+        <div class="sectionhead">
+            <div class="kicker">Turn the page</div>
+            <h2>Every feature, one page at a time</h2>
+            <p>Foc Lock packs in a lot. Flip through like a study notebook — here's what's inside.</p>
+        </div>
+        <div class="book-stage">
+            <div class="book" id="book"></div>
+            <div class="book-nav">
+                <button class="bookbtn" id="bookPrev" aria-label="Previous feature">←</button>
+                <div class="dots" id="bookDots"></div>
+                <button class="bookbtn" id="bookNext" aria-label="Next feature">→</button>
+            </div>
+            <div class="pageindicator" id="bookPageLabel">Page 1 of 7</div>
+        </div>
     </div>
-
-    <div class="book-stage">
-      <div class="book" id="book"></div>
-      <div class="book-nav">
-        <button class="bookbtn" id="bookPrev" aria-label="Previous feature">←</button>
-        <div class="dots" id="bookDots"></div>
-        <button class="bookbtn" id="bookNext" aria-label="Next feature">→</button>
-      </div>
-      <div class="pageindicator" id="bookPageLabel">Page 1 of 7</div>
-    </div>
-  </div>
 </section>
-
-<!-- ============ INSTALL STEPS ============ -->
 <section id="install">
-  <div class="wrap">
-    <div class="sectionhead">
-      <div class="kicker">Get it on any device</div>
-      <h2>Install Foc Lock like a native app</h2>
-      <p>It's a web app — no app store needed. Add it to your home screen or desktop in a few quick steps.</p>
-    </div>
-
-    <div class="install-toggle">
-      <button class="itbtn active" id="modeMobile" data-mode="mobile">📱 Mobile</button>
-      <button class="itbtn" id="modeDesktop" data-mode="desktop">💻 Desktop</button>
-    </div>
-
-    <div class="install-wrap">
-      <div class="preview-backdrop">
-        <!-- Mobile preview -->
-        <div class="phoneframe" id="phoneframe">
-          <div class="notch"></div>
-          <div class="phonescreen" id="stepScreen">
-            <img id="stepImg" src="" alt="Install step" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-            <div class="phonescreen-fallback" id="stepImgFallback">
-              <span class="ph-tag" style="position:absolute;">IMG</span>
-              <span id="stepImgLabel"></span>
-              <span style="opacity:.6;">Drop your screenshot here</span>
+    <div class="wrap">
+        <div class="sectionhead">
+            <div class="kicker">Get it on any device</div>
+            <h2>Install Foc Lock like a native app</h2>
+            <p>
+                It's a web app with a native Android build too — no strings either way. Pick the option that
+                fits your device.
+            </p>
+        </div>
+        <div class="install-toggle">
+            <button class="itbtn active" id="modeMobile" data-mode="mobile">📱 Mobile (WebApp)</button>
+            <button class="itbtn" id="modeDesktop" data-mode="desktop">💻 Desktop</button>
+            <button class="itbtn" id="modeApk" data-mode="apk">🤖 Android APK</button>
+        </div>
+        <div class="install-wrap" id="installWrap">
+            <div class="preview-backdrop">
+                <div class="phoneframe" id="phoneframe">
+                    <div class="notch"></div>
+                    <div class="phonescreen" id="stepScreen">
+                        <img
+                            id="stepImg"
+                            src=""
+                            alt="Install step"
+                            onerror='this.style.display="none",this.nextElementSibling.style.display="flex"'
+                        />
+                        <div class="phonescreen-fallback" id="stepImgFallback">
+                            <span class="ph-tag" style="position: absolute">IMG</span>
+                            <span id="stepImgLabel"></span>
+                            <span style="opacity: 0.6">Drop your screenshot here</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="deskframe" id="deskframe" style="display: none">
+                    <div class="deskbar"><span></span><span></span><span></span></div>
+                    <div class="deskscreen">
+                        <img
+                            id="deskImg"
+                            src=""
+                            alt="Install step"
+                            onerror='this.style.display="none",this.nextElementSibling.style.display="flex"'
+                        />
+                        <div class="phonescreen-fallback" id="deskImgFallback">
+                            <span class="ph-tag" style="position: absolute">IMG</span>
+                            <span id="deskImgLabel"></span>
+                            <span style="opacity: 0.6">Drop your screenshot here</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
-        </div>
-        <!-- Desktop preview -->
-        <div class="deskframe" id="deskframe" style="display:none;">
-          <div class="deskbar"><span></span><span></span><span></span></div>
-          <div class="deskscreen">
-            <img id="deskImg" src="" alt="Install step" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-            <div class="phonescreen-fallback" id="deskImgFallback">
-              <span class="ph-tag" style="position:absolute;">IMG</span>
-              <span id="deskImgLabel"></span>
-              <span style="opacity:.6;">Drop your screenshot here</span>
+            <div>
+                <div class="install-navbar" id="installNavbar">
+                    <button class="navcirc" id="stepPrev" aria-label="Previous step">←</button>
+                    <span class="navcirc-label">Steps</span>
+                    <button class="navcirc" id="stepNext" aria-label="Next step">→</button>
+                </div>
+                <div class="steps-track" id="stepsTrack"></div>
             </div>
-          </div>
         </div>
-      </div>
-
-      <div>
-        <div class="install-navbar">
-          <button class="navcirc" id="stepPrev" aria-label="Previous step">←</button>
-          <span class="navcirc-label">Steps</span>
-          <button class="navcirc" id="stepNext" aria-label="Next step">→</button>
+        <div class="apk-panel" id="apkPanel" style="display: none; margin-top: 44px">
+            <div class="apk-ic">🤖</div>
+            <h3>Foc Lock for Android</h3>
+            <p>
+                The real deal — a native app with push notifications, background timers, and Picture-in-Picture
+                that work the way Android expects. Just download and open the file to install (enable "install
+                from unknown sources" if prompted).
+            </p>
+            <a class="cta apk" href="https://github.com/Bitto29/foc-lock/releases/download/v1.0.0/FocLock.v1.0.0.apk" download>⬇ Download APK</a>
+            <div class="apk-meta">
+                <span>v1.0</span><span>·</span><span>Android 8.0+</span><span>·</span><span>~10 MB</span>
+            </div>
         </div>
-        <div class="steps-track" id="stepsTrack"></div>
-      </div>
     </div>
-  </div>
 </section>
-
-<!-- ============ DEVELOPER ============ -->
 <section id="developer">
-  <div class="wrap">
-    <div class="sectionhead">
-      <div class="kicker">Who built this</div>
-      <h2>Made by a single person</h2>
-    </div>
-
-    <div class="dev-card">
-      <div class="dev-avatar" id="devAvatar" style="background-image:url('https://bitto.pages.dev/profile%20pic.jpg'); background-size:cover; background-position:center;">
-        <span id="devAvatarFallback">B</span>
-      </div>
-      <div class="dev-info">
-        <h3>Basit Iqbal Bitto</h3>
-        <div class="role">Student · Web Dev · Bangladesh</div>
-        <p>A self-taught developer building Foc Lock solo — web dev, design, and AI tooling, all bootstrapped from scratch. Also takes on freelance work across web, design, and content on the side.</p>
-        <div class="dev-links">
-          <a href="https://bitto.pages.dev" target="_blank">Portfolio ↗</a>
-          <!--<a href="https://github.com/Bitto29" target="_blank">GitHub ↗</a>
-          <a href="https://foclock.vercel.app" target="_blank">Foc Lock ↗</a>-->
+    <div class="wrap">
+        <div class="sectionhead">
+            <div class="kicker">Who built this</div>
+            <h2>Made by a single person</h2>
         </div>
-      </div>
+        <div class="dev-card">
+            <div
+                class="dev-avatar"
+                id="devAvatar"
+                style="
+                    background-image: url(&quot;https://bitto.pages.dev/profile%20pic.jpg&quot;);
+                    background-size: cover;
+                    background-position: center;
+                "
+            >
+                <span id="devAvatarFallback">B</span>
+            </div>
+            <div class="dev-info">
+                <h3>Basit Iqbal Bitto</h3>
+                <div class="role">Student · Web Dev · Bangladesh</div>
+                <p>
+                    A self-taught developer building Foc Lock solo — web dev, design, and AI tooling, all
+                    bootstrapped from scratch. Also takes on freelance work across web, design, and content on
+                    the side.
+                </p>
+                <div class="dev-links"><a href="https://bitto.pages.dev" target="_blank">Portfolio ↗</a></div>
+            </div>
+        </div>
+        <div class="support-box">
+            <h3>Enjoying Foc Lock?</h3>
+            <p>
+                It's free, ad-free, and built solo. If it's helped your study sessions, a small tip keeps it
+                going.
+            </p>
+            <div id="supportDefault"><button class="cta" id="supportBtn">☕ Support the developer</button></div>
+            <div id="supportOptions" class="support-options">
+                <button class="support-opt" id="bkashOpt">
+                    <span class="so-ic">📱</span>
+                    <span class="so-text"
+                        ><strong>bKash</strong> <span id="bkashNumber">01XXXXXXXXX</span> </span
+                    ><span class="so-action" id="bkashAction">Copy</span>
+                </button>
+                <a class="support-opt" href="https://supportkori.com/bitto29" target="_blank"
+                    ><span class="so-ic">💳</span>
+                    <span class="so-text"><strong>SupportKori</strong> <span>Card / any method</span> </span
+                    ><span class="so-action">Open ↗</span> </a
+                ><button class="support-back" id="supportBack">← Back</button>
+            </div>
+        </div>
     </div>
-
-    <div class="support-box">
-      <h3>Enjoying Foc Lock?</h3>
-      <p>It's free, ad-free, and built solo. If it's helped your study sessions, a small tip keeps it going.</p>
-
-      <div id="supportDefault">
-        <button class="cta" id="supportBtn">☕ Support the developer</button>
-      </div>
-
-      <div id="supportOptions" class="support-options">
-        <button class="support-opt" id="bkashOpt">
-          <span class="so-ic">📱</span>
-          <span class="so-text">
-            <strong>bKash</strong>
-            <span id="bkashNumber">01XXXXXXXXX</span>
-          </span>
-          <span class="so-action" id="bkashAction">Copy</span>
-        </button>
-        <a class="support-opt" href="https://supportkori.com/bitto29" target="_blank">
-          <span class="so-ic">💳</span>
-          <span class="so-text">
-            <strong>SupportKori</strong>
-            <span>Card / any method</span>
-          </span>
-          <span class="so-action">Open ↗</span>
-        </a>
-        <button class="support-back" id="supportBack">← Back</button>
-      </div>
-    </div>
-  </div>
 </section>
-
-
-<!-- Radio Credits -->
 <div class="radio-credits">
     <div class="wrap">
         <div class="radio-credits-card">
             <div class="radio-title">🎧 Radio Stations</div>
             <p>
-                All radio streams in Foc Lock are sourced from publicly
-                available online radio stations. Thanks to
-                <strong>Soma FM</strong>,
-                <strong>Rajshahi FM</strong>,
-                <strong>MamaV Reggae Vibes Radio</strong>,
-                <strong>Mellow Bangla Radio</strong>,
-                <strong>Radio Today FM 89-6</strong>,
-                <strong>Radio Vivid Voice</strong>,
-                <strong>Radio Foorti</strong>
-
-                and other amazing stations that make focused studying more enjoyable.
+                All radio streams in Foc Lock are sourced from publicly available online radio stations. Thanks
+                to <strong>Soma FM</strong>, <strong>Rajshahi FM</strong>,
+                <strong>MamaV Reggae Vibes Radio</strong>, <strong>Mellow Bangla Radio</strong>,
+                <strong>Radio Today FM 89-6</strong>, <strong>Radio Vivid Voice</strong>,
+                <strong>Radio Foorti</strong> and other amazing stations that make focused studying more
+                enjoyable.
             </p>
         </div>
     </div>
 </div>
-  
 <footer>
   <div class="wrap">
     <div class="fbrand">
