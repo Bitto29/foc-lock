@@ -274,7 +274,35 @@ document.getElementById('stepNext').addEventListener('click', () => {
 document.getElementById('stepPrev').addEventListener('click', () => {
   if(stepCurrent > 0){ stepCurrent--; renderSteps(); }
 });
-
+ (function () {
+  const modeApk = document.getElementById("modeApk"),
+      modeMobile = document.getElementById("modeMobile"),
+      modeDesktop = document.getElementById("modeDesktop"),
+      installWrap = document.getElementById("installWrap"),
+      apkPanel = document.getElementById("apkPanel"),
+      btns = [modeMobile, modeDesktop, modeApk];
+  function showApk() {
+      btns.forEach((b) => b.classList.remove("active"));
+      modeApk.classList.add("active");
+      installWrap.style.display = "none";
+      apkPanel.style.display = "block";
+  }
+  function showWeb(btn) {
+      btns.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      installWrap.style.display = "";
+      apkPanel.style.display = "none";
+  }
+  modeApk.addEventListener("click", showApk);
+  modeMobile.addEventListener("click", () => {
+      showWeb(modeMobile);
+      if (window.setInstallMode) window.setInstallMode("mobile");
+  });
+  modeDesktop.addEventListener("click", () => {
+      showWeb(modeDesktop);
+      if (window.setInstallMode) window.setInstallMode("desktop");
+  });
+})();
 // Mobile / Desktop mode toggle
 document.getElementById('modeMobile').addEventListener('click', () => setInstallMode('mobile'));
 document.getElementById('modeDesktop').addEventListener('click', () => setInstallMode('desktop'));
