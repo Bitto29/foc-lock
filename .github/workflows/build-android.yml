@@ -31,11 +31,11 @@ jobs:
 
       - name: Add Android platform
         run: npx cap add android
-
+        
       - name: Enable PiP in AndroidManifest
         run: |
-          sed -i 's/android:name=".MainActivity"/android:name=".MainActivity" android:supportsPictureInPicture="true" android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|screenLayout|uiMode|navigation"/' android/app/src/main/AndroidManifest.xml
-
+          sed -i 's/android:name=".MainActivity"/android:name=".MainActivity" android:supportsPictureInPicture="true"/' android/app/src/main/AndroidManifest.xml
+      
       - name: Sync Capacitor
         run: npx cap sync
 
