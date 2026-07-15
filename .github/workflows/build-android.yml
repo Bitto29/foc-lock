@@ -32,7 +32,7 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
-      - name: Generate notification icon
+      - name: Generate Status Bar Icon
         run: |
           mkdir -p android/app/src/main/res/drawable
           convert assets/icon.png -resize 96x96 -colorspace Gray -threshold 50% -negate -alpha extract -channel A -fuzz 10% -transparent black android/app/src/main/res/drawable/ic_stat_icon.png
