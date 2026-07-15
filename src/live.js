@@ -1133,8 +1133,8 @@ function resumeSess(){
 }
 
 // ===== NOTIFICATIONS =====
-var NOTIF_ICON='https://foclock.vercel.app/clogo.png';
-var NOTIF_BADGE='https://foclock.vercel.app/clogo.png';
+var NOTIF_ICON='logo.png';
+var NOTIF_BADGE='logo.png';
 var SW_REG=null;
 function initNotifServiceWorker(){
   if(!('serviceWorker' in navigator))return;
