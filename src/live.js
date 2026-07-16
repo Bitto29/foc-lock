@@ -312,6 +312,7 @@ function normalizeRemoteState(raw){
 }
 async function loadCloud(){
   if(!SB||!AUTH.user)return;
+  if(!navigator.onLine){ updateCloudStatus('Offline'); refreshDerivedAndUI(); return; }
   updateCloudStatus('Loading cloud data...');
   try{
     var res=await SB.from('study_tracking_profiles').select('state,updated_at').eq('user_id',AUTH.user.id).maybeSingle();
@@ -335,6 +336,45 @@ function updateCloudStatus(text){
   var chip=document.getElementById('auth-card-chip');
   if(!chip)return;
   chip.textContent=AUTH.user?(text||'Cloud sync on'):'Local only';
+}
+
+/* Small optional status badge on the Progress tab — safe no-op if the
+   element doesn't exist in the HTML. Shows local-data-always-works state
+   clearly, and flips automatically on connectivity changes. */
+function updateProgressSyncBadge(){
+  var badge=document.getElementById('progress-sync-badge');
+  if(!badge)return;
+  if(!navigator.onLine){
+    badge.textContent='Offline — showing local data';
+    badge.style.color='var(--warn,#e5a83b)';
+  } else if(AUTH.user){
+    badge.textContent='Synced';
+    badge.style.color='var(--success,#3ecf8e)';
+  } else {
+    badge.textContent='Local only';
+    badge.style.color='var(--text2,#8a96a8)';
+  }
+}
+
+/* Generic "You're offline" badge setter — safe no-op if the target element
+   doesn't exist in the HTML. Used for features that genuinely need a live
+   connection (Foco AI chat, Notes cloud sync). */
+function setOfflineBadge(elId, featureLabel){
+  var badge=document.getElementById(elId);
+  if(!badge)return;
+  if(!navigator.onLine){
+    badge.style.display='inline-flex';
+    badge.textContent='You\'re offline'+(featureLabel?' — '+featureLabel+' needs internet':'');
+    badge.style.color='var(--warn,#e5a83b)';
+  } else {
+    badge.style.display='none';
+  }
+}
+
+function updateAllOfflineBadges(){
+  setOfflineBadge('foco-offline-badge','Foco');
+  setOfflineBadge('sfoco-offline-badge','Foco');
+  setOfflineBadge('notes-offline-badge','Notes');
 }
 function refreshDerivedAndUI(){
   D.xp=calcXP(); persistLocal(); updateGreeting(); updHome(); renderSubjList(); renderRems(); renderBadges(); renderGoals(); updXP();
@@ -460,7 +500,16 @@ function init(){
   initNotifServiceWorker();
   if(isNativeApp()){ setTimeout(function(){ ensureNativeNotifPermission(); },1000); }
   document.addEventListener('visibilitychange',onVis);
-  restoreSessionState(); bootSupabase(); window.addEventListener('online', function(){ checkAnnouncements(); }); updateAuthUI();
+  restoreSessionState(); bootSupabase();
+  window.addEventListener('online', function(){
+    checkAnnouncements();
+    updateProgressSyncBadge();
+    updateAllOfflineBadges();
+    if(AUTH.user){ loadCloud(); renderFriendsLeaderboard(); }
+  });
+  window.addEventListener('offline', function(){ updateProgressSyncBadge(); updateAllOfflineBadges(); });
+  updateAllOfflineBadges();
+  updateAuthUI();
   renderFriendsLeaderboard();
   if('Notification' in window && Notification.permission==='default'){
     setTimeout(function(){ ensureBrowserNotifications(); },1500);
@@ -562,7 +611,7 @@ function goScr(n,el,_skipHistory){
   if(target){ target.classList.add('active'); }
   if(el)el.classList.add('active');
   else { var ni=document.querySelector('.ni[onclick*=\''+n+'\']'); if(ni)ni.classList.add('active'); }
-  if(n==='progress'){updChart();updSBars();updHist();requestAnimationFrame(function(){updDayChart();});}
+  if(n==='progress'){updChart();updSBars();updHist();updateProgressSyncBadge();requestAnimationFrame(function(){updDayChart();});}
   if(n==='rewards'){renderBadges();updXP();renderGoals();renderFriendsLeaderboard();}
   if(n==='home'){updHome();}
   var contentEl=document.getElementById('content');
@@ -870,6 +919,7 @@ function startSess(){
   updateSessionXPDisplay(); syncReminderLoop(); saveSessionState(); updTDisp(); setSessionFullscreenUI();
   clearInterval(STMR); STMR=setInterval(tick,1000);
   notifyApp('Foc Lock','Session started. Stay focused!',{tag:'session-start',requireInteraction:false});
+  scheduleNativeSessionReminders();
 }
 function tick(){
   if(!CUR||CUR.paused)return;
@@ -1056,6 +1106,7 @@ function fmtDur(mins){
 function endSess(done){
   if(!CUR)return;
   clearInterval(STMR);clearInterval(PNTMR);clearInterval(REMTMR);
+  cancelNativeSessionReminders();
   relWL();stopSM();
   try{ if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen(); }catch(e){}
   stopPauseCountdown();
@@ -1119,6 +1170,7 @@ function pauseSess(){
   document.getElementById('btn-resume').style.display='flex';
   document.getElementById('btn-end').style.display='flex';
   relWL(); syncReminderLoop(); saveSessionState(); updTDisp();
+  cancelNativeSessionReminders();
   notifyApp('Foc Lock','Session paused. Get back to studying!',{tag:'session-paused',requireInteraction:true});
 }
 function resumeSess(){
@@ -1129,6 +1181,7 @@ function resumeSess(){
   document.getElementById('btn-resume').style.display='none';
   document.getElementById('btn-end').style.display='none';
   if(CUR.lock)acqWL(); syncReminderLoop(); saveSessionState(); updTDisp();
+  scheduleNativeSessionReminders();
   notifyApp('Foc Lock','Session resumed.',{tag:'session-resumed',requireInteraction:false});
 }
 
@@ -1177,6 +1230,46 @@ async function sendNativeNotif(t,b,o){
     return true;
   }catch(e){ return false; }
 }
+
+/* ── Native scheduled reminders for the current session ──
+   Android suspends JS timers in the background, so instead of relying on
+   setInterval to "check and fire" every 5 minutes, we hand Android's own
+   alarm system a full batch of future-timed notifications up front. The OS
+   fires them independent of whether our JS is still running. */
+var NATIVE_REMINDER_BASE_ID = 5000;
+var NATIVE_REMINDER_COUNT = 24; // covers the next 2 hours, every 5 min
+
+async function scheduleNativeSessionReminders(){
+  if(!isNativeApp() || !CUR) return;
+  try{
+    var LN = window.Capacitor.Plugins.LocalNotifications;
+    var notifications = [];
+    var now = Date.now();
+    var body = CUR.lock
+      ? 'Stay focused. Your session is still running.'
+      : 'Study check-in: are you still studying?';
+    for(var i = 1; i <= NATIVE_REMINDER_COUNT; i++){
+      notifications.push({
+        id: NATIVE_REMINDER_BASE_ID + i,
+        title: 'Foc Lock',
+        body: body,
+        schedule: { at: new Date(now + i * 300000) }
+      });
+    }
+    await LN.schedule({ notifications: notifications });
+  }catch(e){}
+}
+
+async function cancelNativeSessionReminders(){
+  if(!isNativeApp()) return;
+  try{
+    var LN = window.Capacitor.Plugins.LocalNotifications;
+    var ids = [];
+    for(var i = 1; i <= NATIVE_REMINDER_COUNT; i++) ids.push({id: NATIVE_REMINDER_BASE_ID + i});
+    await LN.cancel({ notifications: ids });
+  }catch(e){}
+}
+
 function ensureBrowserNotifications(){
   if(!('Notification' in window))return Promise.resolve(false);
   initNotifServiceWorker();
@@ -1205,8 +1298,23 @@ function sndNotif(t,b,o){
   }
 }
 function notifyApp(t,b,o){ if(!sndNotif(t,b,o))toast(b||t); }
-function enableBrowserNotifications(){ ensureBrowserNotifications().then(function(ok){ toast(ok?'Browser notifications enabled.':'Notifications are blocked.'); }); }
-function testBrowserNotification(){ ensureBrowserNotifications().then(function(ok){ if(ok)notifyApp('Foc Lock test','This is a browser notification test.',{tag:'test-notification',requireInteraction:true}); else toast('Notifications are blocked.'); }); }
+function enableBrowserNotifications(){
+  if(isNativeApp()){
+    ensureNativeNotifPermission().then(function(ok){ toast(ok?'Notifications enabled.':'Notifications are blocked.'); });
+    return;
+  }
+  ensureBrowserNotifications().then(function(ok){ toast(ok?'Browser notifications enabled.':'Notifications are blocked.'); });
+}
+function testBrowserNotification(){
+  if(isNativeApp()){
+    ensureNativeNotifPermission().then(function(ok){
+      if(ok) notifyApp('Foc Lock test','This is a native notification test.',{tag:'test-notification',requireInteraction:true});
+      else toast('Notifications are blocked.');
+    });
+    return;
+  }
+  ensureBrowserNotifications().then(function(ok){ if(ok)notifyApp('Foc Lock test','This is a browser notification test.',{tag:'test-notification',requireInteraction:true}); else toast('Notifications are blocked.'); });
+}
 
 // ===== AUDIO =====
 function getACtx(){ if(!ACTX)ACTX=new(window.AudioContext||window.webkitAudioContext)(); return ACTX; }
@@ -1911,6 +2019,10 @@ async function renderFriendsLeaderboard(){
   var status=document.getElementById('league-friend-status');
   if(!board) return;
 
+  if(!navigator.onLine){
+    board.innerHTML='<div class="friend-empty"><strong>Offline</strong>Leaderboard needs an internet connection.</div>';
+    return;
+  }
   if(!SB || !AUTH.user){
     if(sub) sub.textContent='Sign in to compete with friends on XP, streaks, and achievements.';
     if(status) status.innerHTML='<strong>0</strong> friends';
@@ -3022,6 +3134,7 @@ function setStudioTab(tab, el){
   var panel = document.getElementById('studio-' + tab);
   if(panel) panel.classList.add('active');
   if(tab === 'notes'){ renderNotes(); }
+  updateAllOfflineBadges();
 }
 
 function focoKD(e){ if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); focoSend(); } }
@@ -3511,6 +3624,7 @@ var SFOCO_SID = null;
 function openSessFoco(){
   document.getElementById('sess-foco-overlay').classList.add('open');
   document.getElementById('sfoco-inp').focus();
+  updateAllOfflineBadges();
 }
 function closeSessFoco(e){
   if(!e || e.target === document.getElementById('sess-foco-overlay')){
