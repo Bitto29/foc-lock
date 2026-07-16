@@ -699,61 +699,7 @@ window.addEventListener('popstate',function(e){
 });
 
 // ===== PAGE SWIPE / ARROW NAV =====
-var FOCO_TAB_ORDER=['home','progress','sounds','rewards','more'];
 
-function focoNavSwipeBlocked(){
-  // Don't hijack left/right when a modal, sidebar, session, or subpage is open —
-  // only switch main tabs when we're actually looking at a top-level tab.
-  var focosb=document.getElementById('foco-sidebar');
-  if(focosb&&focosb.classList.contains('open'))return true;
-  var sfoco=document.getElementById('sess-foco-overlay');
-  if(sfoco&&sfoco.classList.contains('open'))return true;
-  if(SESS_MIN)return true;
-  var modals=['session-calc-modal','mgate','sm','auth-modal','manual-modal','edit-session-modal','friends-modal','kb-modal'];
-  for(var i=0;i<modals.length;i++){
-    var m=document.getElementById(modals[i]);
-    if(m&&(m.classList.contains('open')||m.classList.contains('active')))return true;
-  }
-  if(CUR)return true; // active focus session showing — don't swipe away
-  if(_currentTab()==='more'&&_currentSub()!=='more-main')return true; // inside a sub-page
-  return false;
-}
-
-function focoStepTab(dir){
-  var cur=_currentTab();
-  var idx=FOCO_TAB_ORDER.indexOf(cur);
-  if(idx===-1)idx=0;
-  var next=idx+dir;
-  if(next<0||next>=FOCO_TAB_ORDER.length)return; // no wraparound
-  var n=FOCO_TAB_ORDER[next];
-  goScr(n,document.querySelector('.ni[onclick*=\''+n+'\']'));
-}
-
-(function(){
-  var touchStartX=0,touchStartY=0,touchActive=false;
-  var content=document.getElementById('content');
-  if(!content)return;
-  content.addEventListener('touchstart',function(e){
-    if(e.touches.length!==1)return;
-    if(focoNavSwipeBlocked()){touchActive=false;return;}
-    touchStartX=e.touches[0].clientX;
-    touchStartY=e.touches[0].clientY;
-    touchActive=true;
-  },{passive:true});
-  content.addEventListener('touchend',function(e){
-    if(!touchActive)return;
-    touchActive=false;
-    var touch=e.changedTouches&&e.changedTouches[0];
-    if(!touch)return;
-    var dx=touch.clientX-touchStartX;
-    var dy=touch.clientY-touchStartY;
-    var absX=Math.abs(dx),absY=Math.abs(dy);
-    var SWIPE_MIN=60; // px
-    if(absX<SWIPE_MIN||absX<absY*1.5)return; // must be a mostly-horizontal, deliberate swipe
-    if(focoNavSwipeBlocked())return;
-    focoStepTab(dx<0?1:-1); // swipe left -> next tab, swipe right -> previous tab
-  },{passive:true});
-})();
 
 // ===== MANUAL SESSION =====
 function setManualDefaults(){
