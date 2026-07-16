@@ -624,7 +624,7 @@ body{background:var(--bg);}
 .btn-s{background:var(--bg3);border:1px solid var(--border);color:var(--text);}
 .btn-s:hover{border-color:var(--border2);}
 .small-btn{
-  padding:9px 13px;border-radius:var(--radius-xs);border:1px solid var(--border);
+  padding:12px 13px;border-radius:var(--radius-xs);border:1px solid var(--border);
   background:var(--bg3);color:var(--text2);font-size:12px;font-weight:700;
   cursor:pointer;font-family:var(--font);transition:all .2s ease;
 }
