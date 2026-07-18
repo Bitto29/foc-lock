@@ -32,6 +32,42 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
+      - name: Add native PiP support
+        run: |
+          MAINACT=$(find android/app/src/main/java -name "MainActivity.java")
+          cat > "$MAINACT" << 'EOF'
+          package com.bitto.foclock;
+
+          import android.app.PictureInPictureParams;
+          import android.os.Build;
+          import android.util.Rational;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onUserLeaveHint() {
+                  super.onUserLeaveHint();
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                      PictureInPictureParams params = new PictureInPictureParams.Builder()
+                          .setAspectRatio(new Rational(3, 4))
+                          .build();
+                      try {
+                          enterPictureInPictureMode(params);
+                      } catch (Exception e) {
+                          // ignore safely
+                      }
+                  }
+              }
+          }
+          EOF
+
+      - name: Enable PiP in AndroidManifest
+        run: |
+          sed -i 's/android:name=".MainActivity"/android:name=".MainActivity" android:supportsPictureInPicture="true"/' android/app/src/main/AndroidManifest.xml
+
+      - name: Sync Capacitor
+        run: npx cap sync
+
       - name: Install ImageMagick
         run: sudo apt-get update && sudo apt-get install -y imagemagick
 
@@ -39,9 +75,6 @@ jobs:
         run: |
           mkdir -p android/app/src/main/res/drawable
           convert assets/icon.png -resize 96x96 -colorspace Gray -threshold 50% -negate -alpha extract -channel A -fuzz 10% -transparent black android/app/src/main/res/drawable/ic_stat_icon.png
-          
-      - name: Sync Capacitor
-        run: npx cap sync
 
       - name: Generate app icons
         run: npx @capacitor/assets generate --android
