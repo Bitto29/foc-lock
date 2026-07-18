@@ -244,8 +244,14 @@ function updateAuthUI(){
   if(sup)sup.classList.toggle('active',AUTH.mode==='signup');
   var p2=document.getElementById('auth-pass2-wrap');
   if(p2)p2.style.display=AUTH.mode==='signup'?'block':'none';
+  var p2l=document.getElementById('auth-pass2-label');
+  if(p2l)p2l.style.display=AUTH.mode==='signup'?'block':'none';
   var ni=document.getElementById('auth-name');
   if(ni){ ni.style.display=AUTH.mode==='signup'?'block':'none'; ni.required=AUTH.mode==='signup'; }
+  var nil=document.getElementById('auth-name-label');
+  if(nil)nil.style.display=AUTH.mode==='signup'?'block':'none';
+  var fl=document.getElementById('auth-forgot-link');
+  if(fl)fl.style.display=AUTH.mode==='signup'?'none':'block';
 }
 function setAuthMode(mode){
   AUTH.mode=mode==='signup'?'signup':'signin';
@@ -397,6 +403,7 @@ async function bootSupabase(){
       persistSession:true,
       autoRefreshToken:true,
       detectSessionInUrl:false,
+      flowType:'implicit',
       storage:window.localStorage,
       storageKey:'foc-lock-auth'
     }
@@ -486,6 +493,139 @@ async function submitAuth(){
   }
 }
 async function signOut(){ if(!SB)return; try{ await SB.auth.signOut(); }catch(e){} }
+
+// ===== FORGOT PASSWORD =====
+var FORGOT={ step:1, email:'', cooldownTimer:null, cooldownEnd:0, verified:false };
+function showForgotError(msg){ var err=document.getElementById('forgot-error'); if(!err)return; err.textContent=msg; err.style.display=msg?'block':'none'; }
+function showNewPassError(msg){ var err=document.getElementById('newpass-error'); if(!err)return; err.textContent=msg; err.style.display=msg?'block':'none'; }
+function showForgotStep(step){
+  FORGOT.step=step;
+  var s1=document.getElementById('forgot-step1'), s2=document.getElementById('forgot-step2');
+  if(s1)s1.style.display=step===1?'block':'none';
+  if(s2)s2.style.display=step===2?'block':'none';
+  var title=document.getElementById('forgot-modal-title');
+  if(title)title.textContent=step===1?'Reset your password':'Enter your code';
+  var help=document.getElementById('forgot-help');
+  if(help)help.textContent=step===1?"We'll email you a 6-digit code to reset your password.":('Sent to '+FORGOT.email+'. It can take up to a minute to arrive — check spam if you don\'t see it.');
+}
+function startResendCooldown(seconds){
+  var link=document.getElementById('forgot-resend-link');
+  if(!link)return;
+  if(FORGOT.cooldownTimer)clearInterval(FORGOT.cooldownTimer);
+  FORGOT.cooldownEnd=Date.now()+seconds*1000;
+  link.classList.add('disabled');
+  function tick(){
+    var left=Math.ceil((FORGOT.cooldownEnd-Date.now())/1000);
+    if(left<=0){
+      clearInterval(FORGOT.cooldownTimer);
+      FORGOT.cooldownTimer=null;
+      link.classList.remove('disabled');
+      link.textContent='Resend code';
+    }else{
+      link.textContent='Resend code in '+left+'s';
+    }
+  }
+  tick();
+  FORGOT.cooldownTimer=setInterval(tick,1000);
+}
+function openForgotPassword(){
+  closeAuth();
+  FORGOT.step=1; FORGOT.email=''; FORGOT.verified=false;
+  if(FORGOT.cooldownTimer){ clearInterval(FORGOT.cooldownTimer); FORGOT.cooldownTimer=null; }
+  var rl=document.getElementById('forgot-resend-link'); if(rl){ rl.classList.remove('disabled'); rl.textContent='Resend code'; }
+  var fe=document.getElementById('forgot-email'); if(fe)fe.value=(document.getElementById('auth-email')||{}).value||'';
+  var fc=document.getElementById('forgot-code'); if(fc)fc.value='';
+  showForgotStep(1); showForgotError('');
+  setBlurState(true);
+  document.getElementById('forgot-modal').classList.add('open');
+  if(fe)fe.focus();
+}
+function closeForgotModal(){ document.getElementById('forgot-modal').classList.remove('open'); setBlurState(false); if(FORGOT.cooldownTimer){ clearInterval(FORGOT.cooldownTimer); FORGOT.cooldownTimer=null; } }
+function backToSignIn(){ closeForgotModal(); openAuth(); }
+async function sendResetCode(){
+  var email=document.getElementById('forgot-email').value.trim();
+  if(!SB){ showForgotError('Supabase client is not available.'); return; }
+  if(!email){ showForgotError('Enter your email address.'); return; }
+  showForgotError('');
+  var btn=document.getElementById('forgot-send-btn');
+  if(btn){ btn.disabled=true; btn.textContent='Sending...'; }
+  try{
+    var res=await SB.auth.resetPasswordForEmail(email);
+    if(res.error)throw res.error;
+    FORGOT.email=email;
+    toast('Code sent to '+email);
+    showForgotStep(2);
+    startResendCooldown(60);
+    var fc=document.getElementById('forgot-code'); if(fc)fc.focus();
+  }catch(e){
+    showForgotError(e.message||'Could not send reset code.');
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='Send Code'; }
+  }
+}
+function resendResetCode(){
+  var link=document.getElementById('forgot-resend-link');
+  if(link&&link.classList.contains('disabled'))return;
+  sendResetCode();
+}
+async function verifyResetCode(){
+  var code=document.getElementById('forgot-code').value.trim();
+  if(!SB){ showForgotError('Supabase client is not available.'); return; }
+  if(!code){ showForgotError('Enter the code from your email.'); return; }
+  showForgotError('');
+  var btn=document.getElementById('forgot-verify-btn');
+  if(btn){ btn.disabled=true; btn.textContent='Verifying...'; }
+  try{
+    var verify=await SB.auth.verifyOtp({ email:FORGOT.email, token:code, type:'recovery' });
+    if(verify.error)throw verify.error;
+    AUTH.user=(verify.data&&verify.data.user)||(verify.data&&verify.data.session&&verify.data.session.user)||AUTH.user;
+    AUTH.session=(verify.data&&verify.data.session)||AUTH.session;
+    FORGOT.verified=true;
+    if(FORGOT.cooldownTimer){ clearInterval(FORGOT.cooldownTimer); FORGOT.cooldownTimer=null; }
+    closeForgotModal();
+    openNewPasswordModal();
+  }catch(e){
+    showForgotError(e.message||'Could not verify code. Check the code and try again.');
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='Verify Code'; }
+  }
+}
+function openNewPasswordModal(){
+  var np1=document.getElementById('newpass-pass'); if(np1)np1.value='';
+  var np2=document.getElementById('newpass-pass2'); if(np2)np2.value='';
+  var uname=document.getElementById('newpass-username'); if(uname)uname.value=FORGOT.email||'';
+  showNewPassError('');
+  setBlurState(true);
+  document.getElementById('newpass-modal').classList.add('open');
+  if(np1)np1.focus();
+}
+function closeNewPasswordModal(){ document.getElementById('newpass-modal').classList.remove('open'); setBlurState(false); }
+async function confirmNewPassword(){
+  if(!FORGOT.verified){ showNewPassError('Your code verification expired. Please start over.'); return; }
+  var pass=document.getElementById('newpass-pass').value;
+  var pass2=document.getElementById('newpass-pass2').value;
+  if(!SB){ showNewPassError('Supabase client is not available.'); return; }
+  if(!pass||pass.length<6){ showNewPassError('Password must be at least 6 characters.'); return; }
+  if(pass!==pass2){ showNewPassError('Passwords do not match.'); return; }
+  showNewPassError('');
+  var btn=document.getElementById('newpass-confirm-btn');
+  if(btn){ btn.disabled=true; btn.textContent='Saving...'; }
+  try{
+    var upd=await SB.auth.updateUser({ password:pass });
+    if(upd.error)throw upd.error;
+    CLOUD_READY=true;
+    syncNameFromAuth();
+    await loadCloud();
+    updateAuthUI();
+    toast('Password updated. You are signed in.');
+    FORGOT.verified=false;
+    closeNewPasswordModal();
+  }catch(e){
+    showNewPassError(e.message||'Could not update password. Please try again.');
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='Save New Password'; }
+  }
+}
 
 // ===== INIT =====
 function init(){
@@ -1801,6 +1941,8 @@ function saveEditSession(){
   if(isNaN(ts))ts=D.sess[idx].ts||Date.now();
   D.sess[idx].subj=subj; D.sess[idx].d=date; D.sess[idx].ts=ts;
   D.sess[idx].dur=mins*60; D.sess[idx].xp=mins;
+  D.sess[idx].subjs=[subj];
+  D.sess[idx].subjsDetail=[{s:subj,t:''}];
   D.sess.sort(function(a,b){return safeNum(a.ts,0)-safeNum(b.ts,0);});
   D.xp=calcXP();
   localStorage.setItem('fl_s',JSON.stringify(D.sess)); localStorage.setItem('fl_xp',D.xp);
