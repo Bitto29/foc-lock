@@ -869,7 +869,8 @@ function openManualSessionHome(){ setManualDefaults(); setBlurState(true); docum
 function closeManualModal(){ document.getElementById('manual-modal').classList.remove('open'); setBlurState(false); }
 
 // ===== HOME =====
-function today(){ return new Date().toISOString().split('T')[0]; }
+function localDateStr(d){ d=d||new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function today(){ return localDateStr(new Date()); }
 function updHome(){
   var t=today();
   var td=D.sess.filter(function(s){return s.d===t;});
@@ -1056,18 +1057,21 @@ async function minimizeSess(){
   document.getElementById('sess').classList.remove('active');
   document.getElementById('rbn').classList.remove('show');
 
-  /* Native Android PiP */
-  if(isNativeApp() && window.Capacitor.Plugins.PiP){
+  /* Native Android PiP — only fires when the user taps this minimize
+     button, via our own tiny native plugin (PipPlugin), not automatically
+     when leaving the app. */
+  if(isNativeApp() && window.Capacitor.Plugins.PipPlugin){
     try{
-      var sup = await window.Capacitor.Plugins.PiP.isPipSupported();
+      var sup = await window.Capacitor.Plugins.PipPlugin.isPipSupported();
       if(sup && sup.supported){
-        await window.Capacitor.Plugins.PiP.enterPip();
-        document.getElementById('sess-pip').classList.add('show');
+        document.body.classList.add('native-pip-active');
         if(CUR.subj)document.getElementById('pip-subj').textContent=CUR.subj;
+        document.getElementById('sess-pip').classList.add('show');
         updPipDisp();
+        await window.Capacitor.Plugins.PipPlugin.enterPip();
         return;
       }
-    }catch(e){ /* fall through to web PiP paths */ }
+    }catch(e){ document.body.classList.remove('native-pip-active'); /* fall through to web PiP paths */ }
   }
 
   /* Try Document Picture-in-Picture (Chrome 116+, always on top of all tabs) */
@@ -1116,6 +1120,7 @@ async function minimizeSess(){
 
 function maximizeSess(){
   SESS_MIN=false;
+  document.body.classList.remove('native-pip-active');
   if(PIP_WIN){ try{ PIP_WIN.close(); }catch(e){} PIP_WIN=null; }
   document.getElementById('sess-pip').classList.remove('show');
   if(CUR){ document.getElementById('sess').classList.add('active'); updTDisp(); }
@@ -1217,7 +1222,7 @@ function recalcStreak(){
   var days={};
   D.sess.forEach(function(s){if(s&&s.d)days[s.d]=true;});
   var c=0; var dt=new Date();
-  while(days[dt.toISOString().split('T')[0]]){ c++; dt.setDate(dt.getDate()-1); }
+  while(days[localDateStr(dt)]){ c++; dt.setDate(dt.getDate()-1); }
   D.streak={c:c,d:c?today():''};
   localStorage.setItem('fl_st',JSON.stringify(D.streak)); scheduleCloudSave();
 }
@@ -1287,6 +1292,18 @@ function initNotifServiceWorker(){
 function isNativeApp(){
   return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 }
+
+/* Android tells us via this custom event (fired from native MainActivity)
+   whenever the real system PiP window opens or closes — e.g. the user taps
+   the bubble to expand it back, or swipes it away. We use it to restore the
+   full app UI cleanly instead of leaving it stuck in the minimized state. */
+window.addEventListener('pipModeChanged', function(e){
+  var active = !!(e.detail && e.detail.active);
+  if(!active){
+    document.body.classList.remove('native-pip-active');
+    if(SESS_MIN) maximizeSess();
+  }
+});
 
 async function ensureNativeNotifPermission(){
   if(!isNativeApp()) return false;
@@ -1656,7 +1673,7 @@ function getChartData(){
   var labels=[],data=[]; var days=PERIOD==='week'?7:30;
   for(var i=days-1;i>=0;i--){
     var d=new Date(); d.setDate(d.getDate()-i);
-    var str=d.toISOString().split('T')[0];
+    var str=localDateStr(d);
     labels.push(PERIOD==='week'?d.toLocaleDateString('en-US',{weekday:'short'}):d.getDate());
     var m=Math.round(D.sess.filter(function(s){return s.d===str;}).reduce(function(a,s){return a+s.dur;},0)/60);
     data.push(m);
@@ -1822,7 +1839,7 @@ function updDayChart(){
 
 function updChart(){ if(!PCHART)return; PCHART.data=getChartData(); PCHART.update(); }
 function setPeriod(p,el){ PERIOD=p; document.querySelectorAll('.ptab').forEach(function(t){t.classList.remove('active');}); el.classList.add('active'); updChart(); }
-function yesterday(){ var d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().split('T')[0]; }
+function yesterday(){ var d=new Date(); d.setDate(d.getDate()-1); return localDateStr(d); }
 function setSubjPeriod(p){
   SUBJ_PERIOD=p;
   var cr=document.getElementById('subj-custom-range');
@@ -1953,7 +1970,7 @@ function saveEditSession(){
 function closeEditModal(){ document.getElementById('edit-session-modal').classList.remove('open'); }
 
 // ===== REWARDS =====
-var LVLS=[{n:'Beginner',x:0},{n:'Learner',x:100},{n:'Student',x:300},{n:'Scholar',x:600},{n:'Achiever',x:1000},{n:'Expert',x:1500},{n:'Master',x:2500},{n:'Legend',x:5000}];
+var LVLS=[{n:'Beginner',x:0},{n:'Learner',x:100},{n:'Student',x:300},{n:'Scholar',x:600},{n:'Achiever',x:1000},{n:'Expert',x:1500},{n:'Master',x:2500},{n:'Legend',x:5000},{n:'Sage',x:8000},{n:'Virtuoso',x:12000},{n:'Champion',x:17000},{n:'Elite',x:23000},{n:'Mastermind',x:30000},{n:'Grandmaster',x:40000},{n:'Titan',x:52000},{n:'Prodigy',x:66000},{n:'Luminary',x:82000},{n:'Visionary',x:100000},{n:'Mythic',x:125000},{n:'Immortal',x:150000}];
 function getLv(){ var l=0; for(var i=0;i<LVLS.length;i++){if(D.xp>=LVLS[i].x)l=i;} return l; }
 function updXP(){
   var lv=getLv(); var cur=LVLS[lv],nxt=LVLS[lv+1];
@@ -2024,8 +2041,31 @@ var BDGS=[
   {id:'subj20',n:'Universal Scholar',d:'Study 20 different subjects',icon:'brain',chk:function(){return uniqueStrings(D.sess.map(function(s){return s.subj;})).length>=20;}},
   {id:'notes50',n:'Note Taker',d:'Write 50 notes',icon:'award',chk:function(){return (typeof NOTES!=='undefined'&&Array.isArray(NOTES)?NOTES.length:0)>=50;}},
   {id:'notes100',n:'Archivist',d:'Write 100 notes',icon:'trophy',chk:function(){return (typeof NOTES!=='undefined'&&Array.isArray(NOTES)?NOTES.length:0)>=100;}},
-  {id:'lvl10',n:'Level 10',d:'Reach level 10',icon:'crown',chk:function(){return safeNum(D.level,1)>=10;}},
-  {id:'lvl25',n:'Level 25',d:'Reach level 25',icon:'crown',chk:function(){return safeNum(D.level,1)>=25;}}
+  {id:'lvl10',n:'Level 10',d:'Reach level 10',icon:'crown',chk:function(){return getLv()+1>=10;}},
+  {id:'lvl25',n:'Level 25',d:'Reach level 25',icon:'crown',chk:function(){return getLv()+1>=25;}},
+  {id:'lvl40',n:'Titan Tier',d:'Reach level 40',icon:'crown',chk:function(){return getLv()+1>=40;}},
+  {id:'lvlmax',n:'Immortal',d:'Reach the max level',icon:'spark',chk:function(){return getLv()+1>=LVLS.length;}},
+  {id:'s14',n:'Two Week Warrior',d:'Study 14 days in a row',icon:'calendar',chk:function(){return D.streak.c>=14;}},
+  {id:'s21',n:'Habit Formed',d:'Study 21 days in a row',icon:'shield',chk:function(){return D.streak.c>=21;}},
+  {id:'rem1',n:'Planner',d:'Set your first reminder',icon:'clock',chk:function(){return (D.rems||[]).length>=1;}},
+  {id:'rem5',n:'Scheduler',d:'Set 5 reminders',icon:'clock',chk:function(){return (D.rems||[]).length>=5;}},
+  {id:'multisubj3',n:'Juggler',d:'Study 3+ subjects in one session',icon:'book',chk:function(){return D.sess.some(function(s){return Array.isArray(s.subjs)&&s.subjs.length>=3;});}},
+  {id:'bigGoal',n:'Ambitious',d:'Set a daily goal of 3+ hours',icon:'target',chk:function(){return safeNum(D.goal,0)>=180;}},
+  {id:'flawless10',n:'Flawless Ten',d:'Complete 10 sessions without ending early',icon:'medal',chk:function(){return D.sess.filter(function(s){return s.done===true&&!s.manual;}).length>=10;}},
+  {id:'quickie',n:'Quick Burst',d:'Complete a session under 5 minutes',icon:'zap',chk:function(){return D.sess.some(function(s){return !s.manual&&safeNum(s.dur,0)>0&&safeNum(s.dur,0)<=300;});}},
+  {id:'weekHours10',n:'Solid Week',d:'Study 10+ hours in a single week',icon:'fire',chk:function(){
+    var byWeek={};
+    D.sess.forEach(function(s){
+      if(!s.d)return;
+      var dt=new Date(s.d+'T00:00:00');
+      var onejan=new Date(dt.getFullYear(),0,1);
+      var wk=dt.getFullYear()+'-'+Math.ceil((((dt-onejan)/86400000)+onejan.getDay()+1)/7);
+      byWeek[wk]=(byWeek[wk]||0)+safeNum(s.dur,0);
+    });
+    return Object.values(byWeek).some(function(sec){return sec>=36000;});
+  }},
+  {id:'notes5',n:'Getting Organized',d:'Write 5 notes',icon:'award',chk:function(){return (typeof NOTES!=='undefined'&&Array.isArray(NOTES)?NOTES.length:0)>=5;}},
+  {id:'notes20',n:'Well Documented',d:'Write 20 notes',icon:'award',chk:function(){return (typeof NOTES!=='undefined'&&Array.isArray(NOTES)?NOTES.length:0)>=20;}}
 ];
 function chkAch(){
   BDGS.forEach(function(b){
