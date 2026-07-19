@@ -1051,6 +1051,46 @@ function pad(n){return String(n).padStart(2,'0');}
 var SESS_MIN=false;
 var PIP_WIN=null;
 
+/* Builds (once) a dedicated full-screen view used only while real Android
+   PiP is active. It's injected fresh via JS so no HTML changes are needed.
+   CSS hides every other element on the page while it's showing, so the
+   scaled-down PiP capture shows only this clean timer — not the nav bar,
+   header, or the old floating box's expand button (which is meaningless
+   inside a real system PiP window anyway — the user exits it by swiping
+   it away or tapping it to return, both handled by Android itself). */
+function ensureNativePipView(){
+  if(document.getElementById('native-pip-view')) return;
+
+  var style=document.createElement('style');
+  style.id='native-pip-style';
+  style.textContent=
+    'body.native-pip-active > *:not(#native-pip-view){display:none !important;}'+
+    'body.native-pip-active{background:#0b0f19 !important;overflow:hidden !important;}'+
+    '#native-pip-view{display:none;position:fixed;inset:0;z-index:2147483647;'+
+      'background:#0b0f19;flex-direction:column;align-items:center;justify-content:center;'+
+      'gap:6px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;'+
+      'color:#f1f5f9;text-align:center;padding:16px;box-sizing:border-box;'+
+      '-webkit-font-smoothing:antialiased;}'+
+    'body.native-pip-active #native-pip-view{display:flex;}'+
+    '#npip-subj{font-size:14px;font-weight:800;color:#3d8fe0;letter-spacing:.3px;'+
+      'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:92%;}'+
+    '#npip-time{font-size:min(18vw,88px);font-weight:900;letter-spacing:-2px;'+
+      'font-variant-numeric:tabular-nums;line-height:1;color:#f8fafc;}'+
+    '#npip-label{font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;'+
+      'letter-spacing:.8px;}'+
+    '#npip-status{font-size:12px;color:#94a3b8;font-weight:600;}';
+  document.head.appendChild(style);
+
+  var view=document.createElement('div');
+  view.id='native-pip-view';
+  view.innerHTML=
+    '<div id="npip-subj">Session</div>'+
+    '<div id="npip-time">00:00</div>'+
+    '<div id="npip-label">remaining</div>'+
+    '<div id="npip-status">\u25cf In Progress</div>';
+  document.body.appendChild(view);
+}
+
 async function minimizeSess(){
   if(!CUR)return;
   SESS_MIN=true;
@@ -1059,14 +1099,19 @@ async function minimizeSess(){
 
   /* Native Android PiP — only fires when the user taps this minimize
      button, via our own tiny native plugin (PipPlugin), not automatically
-     when leaving the app. */
+     when leaving the app. Real system PiP always captures the *entire*
+     screen scaled down — it can't isolate one floating div. So instead of
+     reusing #sess-pip (a small box meant to float inside the page), we
+     swap the whole visible page for one clean full-screen view the instant
+     PiP starts, so what gets captured is just the timer, nothing else. */
   if(isNativeApp() && window.Capacitor.Plugins.PipPlugin){
     try{
       var sup = await window.Capacitor.Plugins.PipPlugin.isPipSupported();
       if(sup && sup.supported){
+        ensureNativePipView();
+        var npipSubj=document.getElementById('npip-subj');
+        if(npipSubj) npipSubj.textContent=CUR.subj||'Session';
         document.body.classList.add('native-pip-active');
-        if(CUR.subj)document.getElementById('pip-subj').textContent=CUR.subj;
-        document.getElementById('sess-pip').classList.add('show');
         updPipDisp();
         await window.Capacitor.Plugins.PipPlugin.enterPip();
         return;
@@ -1135,6 +1180,16 @@ function updPipDisp(){
   var m=Math.floor(ds/60),s=ds%60;
   var timeStr=pad(m)+':'+pad(s);
   var statusStr=CUR.paused?'\u23f8 Paused':'\u25cf In Progress';
+  /* Update the dedicated full-screen native PiP view, if active */
+  if(document.body.classList.contains('native-pip-active')){
+    var nt=document.getElementById('npip-time');
+    var nl=document.getElementById('npip-label');
+    var ns=document.getElementById('npip-status');
+    if(nt)nt.textContent=timeStr;
+    if(nl)nl.textContent=lbl;
+    if(ns)ns.textContent=statusStr;
+    return;
+  }
   /* Update Document PiP window */
   if(PIP_WIN&&!PIP_WIN.closed){
     var pt=PIP_WIN.document.getElementById('pip-time');
