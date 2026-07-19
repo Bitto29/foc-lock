@@ -34,28 +34,69 @@ jobs:
 
       - name: Add native PiP support
         run: |
-          MAINACT=$(find android/app/src/main/java -name "MainActivity.java")
-          cat > "$MAINACT" << 'EOF'
+          JAVADIR=$(dirname $(find android/app/src/main/java -name "MainActivity.java"))
+
+          cat > "$JAVADIR/PipPlugin.java" << 'EOF'
           package com.bitto.foclock;
 
           import android.app.PictureInPictureParams;
           import android.os.Build;
           import android.util.Rational;
+          import com.getcapacitor.JSObject;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+
+          @CapacitorPlugin(name = "PipPlugin")
+          public class PipPlugin extends Plugin {
+
+              @PluginMethod
+              public void enterPip(PluginCall call) {
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                      PictureInPictureParams params = new PictureInPictureParams.Builder()
+                          .setAspectRatio(new Rational(4, 3))
+                          .build();
+                      try {
+                          getActivity().enterPictureInPictureMode(params);
+                          call.resolve();
+                      } catch (Exception e) {
+                          call.reject("Could not enter PiP: " + e.getMessage());
+                      }
+                  } else {
+                      call.reject("PiP not supported on this Android version");
+                  }
+              }
+
+              @PluginMethod
+              public void isPipSupported(PluginCall call) {
+                  JSObject ret = new JSObject();
+                  ret.put("supported", Build.VERSION.SDK_INT >= Build.VERSION_CODES.O);
+                  call.resolve(ret);
+              }
+          }
+          EOF
+
+          cat > "$JAVADIR/MainActivity.java" << 'EOF'
+          package com.bitto.foclock;
+
+          import android.content.res.Configuration;
+          import android.os.Bundle;
           import com.getcapacitor.BridgeActivity;
 
           public class MainActivity extends BridgeActivity {
               @Override
-              public void onUserLeaveHint() {
-                  super.onUserLeaveHint();
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                      PictureInPictureParams params = new PictureInPictureParams.Builder()
-                          .setAspectRatio(new Rational(3, 4))
-                          .build();
-                      try {
-                          enterPictureInPictureMode(params);
-                      } catch (Exception e) {
-                          // ignore safely
-                      }
+              public void onCreate(Bundle savedInstanceState) {
+                  registerPlugin(PipPlugin.class);
+                  super.onCreate(savedInstanceState);
+              }
+
+              @Override
+              public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
+                  super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
+                  if (getBridge() != null) {
+                      String js = "window.dispatchEvent(new CustomEvent('pipModeChanged', {detail:{active:" + isInPictureInPictureMode + "}}));";
+                      getBridge().eval(js, null);
                   }
               }
           }
