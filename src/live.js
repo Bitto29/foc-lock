@@ -1074,7 +1074,7 @@ function ensureNativePipView(){
     'body.native-pip-active #native-pip-view{display:flex;}'+
     '#npip-subj{font-size:14px;font-weight:800;color:#3d8fe0;letter-spacing:.3px;'+
       'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:92%;}'+
-    '#npip-time{font-size:min(18vw,88px);font-weight:900;letter-spacing:-2px;'+
+    '#npip-time{font-size:min(22vw,108px);font-weight:900;letter-spacing:-2px;'+
       'font-variant-numeric:tabular-nums;line-height:1;color:#f8fafc;}'+
     '#npip-label{font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;'+
       'letter-spacing:.8px;}'+
