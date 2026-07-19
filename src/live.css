@@ -739,6 +739,15 @@ body{background:var(--bg);}
 .pip-label{font-size:10px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.7px;text-align:center;}
 .pip-status{font-size:10px;color:var(--text2);font-weight:600;text-align:center;margin-top:2px;}
 
+/* Mobile-only: bigger, punchier PiP mini player. Desktop rules above (and
+   the min-width:769px positioning rule later in this file) are untouched. */
+@media (max-width:768px){
+  #sess-pip{width:224px;padding:12px 16px 14px;}
+  .pip-time{font-size:54px;letter-spacing:-3px;}
+  .pip-subj{font-size:12.5px;max-width:150px;}
+  .pip-label,.pip-status{font-size:11px;}
+}
+
 /* SESSION MUSIC BAR */
 .smusic{
   width:calc(100% - 32px);margin:0 16px 16px;padding:14px;
@@ -853,6 +862,27 @@ body{background:var(--bg);}
   /* Real fullscreen should actually go edge-to-edge on a big screen instead
      of staying locked to the 768px phone-frame column. */
   #sess.sess-immersive{left:0;right:auto;width:100vw;transform:none;box-shadow:none;}
+}
+
+/* Mobile-only tuning for the immersive fullscreen session view. This block
+   only ever applies below 769px, so every desktop rule above is completely
+   untouched — this just fills in what mobile was missing. */
+@media (max-width:768px){
+  #sess.sess-immersive .shdr{padding:18px 18px 0;}
+  #sess.sess-immersive .twrap{gap:14px;}
+  #sess.sess-immersive .tring{
+    width:min(72vw,300px);height:min(72vw,300px);
+    filter:drop-shadow(0 0 30px rgba(59,130,246,.16));
+  }
+  #sess.sess-immersive .ttime{
+    font-size:clamp(52px,16vw,68px);letter-spacing:-2.5px;
+  }
+  #sess.sess-immersive .t-inner-elapsed{font-size:13px;}
+  #sess.sess-immersive .ssubj{font-size:18px;}
+  #sess.sess-immersive .sess-xp-live{font-size:14px;}
+  #sess.sess-immersive .sess-status-txt{font-size:12.5px;}
+  #sess.sess-immersive .sctrl{margin-top:22px;gap:10px;}
+  #sess.sess-immersive .smusic{width:calc(100% - 24px);margin:0 auto 14px;padding:12px 16px;}
 }
 @keyframes popIn{from{transform:scale(.88);opacity:0}to{transform:scale(1);opacity:1}}
 .mq{font-size:32px;font-weight:900;margin:16px 0;color:var(--accent2);letter-spacing:-.5px;}
