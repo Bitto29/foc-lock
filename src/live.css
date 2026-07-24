@@ -1611,9 +1611,9 @@ body{background:var(--bg);}
   background:none;border:none;color:var(--text3);
   cursor:pointer;font-size:12px;padding:1px 2px;
   line-height:1;transition:color .15s;
-  opacity:0;
+  opacity:1;
 }
-.foco-sb-item:hover .fhi-del{opacity:1;}
+/*.foco-sb-item:hover .fhi-del{opacity:1;}*/
 .fhi-del:hover{color:var(--danger);}
 .foco-sb-empty{
   text-align:center;color:var(--text3);
