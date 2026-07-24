@@ -2524,7 +2524,7 @@ function addManualSession(){
   notifyApp('Manual session saved',mins+' minute session added.',{tag:'manual-session',requireInteraction:false});
   closeManualModal();
 }
-function rmRem(i){ D.rems.splice(i,1); localStorage.setItem('fl_r',JSON.stringify(D.rems)); scheduleCloudSave(); renderRems(); renderRemPreview(); }
+function rmRem(i){ D.rems.splice(i,1); localStorage.setItem('fl_r',JSON.stringify(D.rems)); scheduleCloudSave(); scheduleAllNativeDailyReminders(); renderRems(); renderRemPreview(); }
 function tglRem(i,v){ D.rems[i].on=v; localStorage.setItem('fl_r',JSON.stringify(D.rems)); scheduleCloudSave(); }
 function checkRems(){
   var n=new Date(); var cur=pad(n.getHours())+':'+pad(n.getMinutes());
