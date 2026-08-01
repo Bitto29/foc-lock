@@ -2136,7 +2136,7 @@ function getChartData(){
       data.push(m);
     }
   }
-  return{labels:labels,datasets:[{data:data,backgroundColor:PERIOD==='week'?'rgba(61,143,224,.6)':'rgba(61,143,224,.55)',hoverBackgroundColor:PERIOD==='week'?'rgba(155,125,255,.85)':'rgba(61,143,224,.85)',borderRadius:6,borderSkipped:false}]};
+  return{labels:labels,datasets:[{data:data,backgroundColor:PERIOD==='week'?'rgba(61,143,224,.6)':'rgba(61,143,224,.55)',hoverBackgroundColor: PERIOD === 'week' ? 'rgba(110, 180, 245, 0.85)' : 'rgba(110, 180, 245, 0.8)',borderRadius:6,borderSkipped:false}]};
 }
 /* ── DAILY ACTIVITY CHART ── */
 var DCHART=null;
