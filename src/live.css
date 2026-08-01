@@ -730,36 +730,37 @@ body{background:var(--bg);}
 
 /* MINI SESSION PiP */
 #sess-pip{
-  position:fixed;bottom:24px;right:20px;width:196px;
+  position:fixed;bottom:24px;right:20px;width:168px;
   background:var(--bg2);border:1.5px solid var(--border2);
-  border-radius:18px;box-shadow:0 8px 36px rgba(0,0,0,.38);
+  border-radius:16px;box-shadow:0 8px 28px rgba(0,0,0,.4);
   z-index:1100;display:none;flex-direction:column;
-  padding:10px 14px 12px;cursor:default;user-select:none;gap:4px;
+  padding:8px 12px 10px;cursor:default;user-select:none;gap:3px;
 }
 #sess-pip.show{display:flex;}
 #sess-pip.pip-dragging{opacity:.85;transition:none !important;}
-.pip-drag-bar{width:36px;height:3px;background:var(--border2);border-radius:2px;margin:0 auto 6px;cursor:grab;border-radius:3px;}
+.pip-drag-bar{width:30px;height:3px;background:var(--border2);border-radius:2px;margin:0 auto 5px;cursor:grab;}
 .pip-drag-bar:active{cursor:grabbing;}
-.pip-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
-.pip-subj{font-size:11px;font-weight:800;color:var(--accent2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:108px;}
+.pip-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;}
+.pip-subj{font-size:10px;font-weight:800;color:var(--accent2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:92px;}
 .pip-expand{
   background:var(--accent);color:#fff;border:none;
-  border-radius:7px;font-size:10px;font-weight:800;
-  padding:4px 8px;cursor:pointer;font-family:var(--font);
+  border-radius:6px;font-size:9px;font-weight:800;
+  padding:3px 7px;cursor:pointer;font-family:var(--font);
   transition:filter .15s;
 }
 .pip-expand:hover{filter:brightness(1.12);}
-.pip-time{font-size:40px;font-weight:900;letter-spacing:-2.5px;font-variant-numeric:tabular-nums;color:var(--text);text-align:center;line-height:1.05;}
-.pip-label{font-size:10px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.7px;text-align:center;}
-.pip-status{font-size:10px;color:var(--text2);font-weight:600;text-align:center;margin-top:2px;}
+.pip-time{font-size:30px;font-weight:900;letter-spacing:-1.5px;font-variant-numeric:tabular-nums;color:var(--text);text-align:center;line-height:1.05;}
+.pip-label{font-size:9px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.6px;text-align:center;}
+.pip-status{font-size:9px;color:var(--text2);font-weight:600;text-align:center;margin-top:1px;}
 
-/* Mobile-only: bigger, punchier PiP mini player. Desktop rules above (and
-   the min-width:769px positioning rule later in this file) are untouched. */
+/* Mobile: same compact size as desktop — keep it small and out of the way,
+   with just a touch more breathing room and safe-area clearance so it
+   doesn't sit under a gesture bar. */
 @media (max-width:768px){
-  #sess-pip{width:224px;padding:12px 16px 14px;}
-  .pip-time{font-size:54px;letter-spacing:-3px;}
-  .pip-subj{font-size:12.5px;max-width:150px;}
-  .pip-label,.pip-status{font-size:11px;}
+  #sess-pip{width:150px;padding:8px 11px 10px;bottom:calc(20px + env(safe-area-inset-bottom,0px));}
+  .pip-time{font-size:26px;letter-spacing:-1px;}
+  .pip-subj{font-size:10px;max-width:78px;}
+  .pip-label,.pip-status{font-size:9px;}
 }
 
 /* SESSION MUSIC BAR */
@@ -892,7 +893,7 @@ body{background:var(--bg);}
     font-size:clamp(52px,16vw,68px);letter-spacing:-2.5px;
   }
   #sess.sess-immersive .t-inner-elapsed{font-size:13px;}
-  #sess.sess-immersive .ssubj{font-size:18px;}
+  #sess.sess-immersive .ssubj{font-size:15px;}
   #sess.sess-immersive .sess-xp-live{font-size:14px;}
   #sess.sess-immersive .sess-status-txt{font-size:12.5px;}
   #sess.sess-immersive .sctrl{margin-top:22px;gap:10px;padding-bottom:env(safe-area-inset-bottom,0px);}
@@ -1124,9 +1125,9 @@ body{background:var(--bg);}
   border-radius:999px;background:var(--bg3);border:1px solid var(--border);
   font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;
 }
-.auth-card-actions{display:flex;gap:8px;margin-top:14px; justify-content:right;}
-/*.auth-card-actions .small-btn{min-width: 150px;}*/
-.auth-card-actions .btn{width: auto; min-width: 100px; padding: 11px 14px;}
+.auth-card-actions{display:flex;gap:8px;margin-top:14px;}
+.auth-card-actions .small-btn{flex:1;}
+.auth-card-actions .btn{flex:1;width:auto;}
 
 .auth-modal-tabs{display:flex;gap:6px;margin-bottom:14px;background:var(--bg3);padding:4px;border-radius:var(--radius-xs);}
 .auth-modal-tab{
