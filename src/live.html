@@ -841,7 +841,18 @@
           </div>
           <label class="tgl"><input type="checkbox" id="dnd-session-toggle" onchange="toggleDndSession(this.checked)"><span class="tslider"></span></label>
         </div>
-      </div>      <div class="card">
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <div style="font-size:14px;font-weight:800;margin-bottom:4px;">Reminder Reliability</div>
+            <div style="font-size:11px;color:var(--text2);line-height:1.5;font-weight:500;">Let Android fire reminders exactly on time even when Foc Lock is fully closed, instead of batching them late.</div>
+            <div id="reliability-status" style="font-size:11px;font-weight:600;margin-top:6px;"></div>
+          </div>
+          <button class="small-btn" onclick="fixReminderReliability()">Enable</button>
+        </div>
+      </div>
+      <div class="card">
         <div class="danger-zone-label">Danger Zone</div>
         <div style="font-size:12px;color:var(--text2);margin-bottom:12px;font-weight:500;">This permanently deletes all your session data, XP, and achievements.</div>
         <button class="btn btn-danger" onclick="resetData()">Clear All Session Data</button>
