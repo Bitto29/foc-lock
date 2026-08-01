@@ -1427,56 +1427,6 @@ async function togglePipKeepAwake(v){
   toast(D.pipKeepAwake ? 'Screen will stay awake while the mini player is up.' : 'Screen can sleep during the mini player.');
 }
 
-// ===== REMINDER RELIABILITY (exact alarms + battery exemption) =====
-/* Fixes reminders/check-ins arriving late (or not at all) once the app is
-   fully closed. Since Android 12, apps need the "Alarms & reminders"
-   permission to fire scheduled notifications at their exact time when not
-   running — without it, Android silently downgrades them to inexact and
-   batches delivery into its next Doze maintenance window, which shows up
-   as "comes late." Battery-optimization exemption is the same idea:
-   without it, the OS can defer wakeups for the app indefinitely. */
-async function checkReminderReliability(){
-  if(!isNativeApp()) return null;
-  try{
-    var RP = window.Capacitor.Plugins.ReliabilityPlugin;
-    if(!RP) return null;
-    return await RP.checkStatus();
-  }catch(e){ return null; }
-}
-async function renderReliabilityStatus(){
-  var el = document.getElementById('reliability-status');
-  if(!el) return;
-  if(!isNativeApp()){ el.textContent=''; return; }
-  var status = await checkReminderReliability();
-  if(!status){ el.textContent=''; return; }
-  if(status.exactAlarmsGranted && status.batteryOptimizationExempt){
-    el.textContent = '✓ Fully enabled — reminders will fire on time even when closed.';
-    el.style.color = 'var(--success)';
-  } else {
-    el.textContent = '⚠ Not fully enabled — reminders may arrive late when the app is closed.';
-    el.style.color = 'var(--warning, #e0a83d)';
-  }
-}
-async function fixReminderReliability(){
-  if(!isNativeApp()){ toast('This only works in the installed app, not the browser.'); return; }
-  try{
-    var RP = window.Capacitor.Plugins.ReliabilityPlugin;
-    if(!RP){ toast('Needs a fresh app build to work.'); return; }
-    var status = await checkReminderReliability();
-    if(status && !status.exactAlarmsGranted){
-      await RP.requestExactAlarmPermission();
-      toast('Turn on "Allow" for Foc Lock on the screen that just opened.');
-      return; // one settings screen at a time — re-tap the button for the next one
-    }
-    if(status && !status.batteryOptimizationExempt){
-      await RP.requestBatteryExemption();
-      toast('Allow Foc Lock to skip battery optimization on the screen that just opened.');
-      return;
-    }
-    toast('Already fully enabled!');
-  }catch(e){ toast('Could not open settings.'); }
-}
-
 // ===== SESSION DO NOT DISTURB =====
 /* Expects a native DndPlugin (same pattern as PipPlugin) exposing:
      isDndSupported() -> { supported: boolean }
@@ -1837,7 +1787,6 @@ function renderSettingsToggles(){
   if(pel) pel.checked = !!D.pipKeepAwake;
   var del = document.getElementById('dnd-session-toggle');
   if(del) del.checked = !!D.dndSession;
-  renderReliabilityStatus();
 }
 
 // ===== AUDIO =====
