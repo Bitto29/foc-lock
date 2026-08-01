@@ -52,16 +52,42 @@ jobs:
           import android.content.pm.PackageManager;
           import android.os.Build;
           import android.util.Rational;
+
           import com.getcapacitor.JSObject;
           import com.getcapacitor.Plugin;
           import com.getcapacitor.PluginCall;
           import com.getcapacitor.PluginMethod;
           import com.getcapacitor.annotation.CapacitorPlugin;
 
+          /**
+           * Android Picture-in-Picture, auto-triggered on leaving the app.
+           *
+           * TIMING: enterPictureInPictureMode() only works reliably when called from
+           * Activity.onUserLeaveHint(). MainActivity reaches this plugin via the
+           * static getInstance() below rather than Bridge.getPluginHandle(), which
+           * Capacitor 6 no longer exposes publicly.
+           *
+           * JS-facing API (window.Capacitor.Plugins.PipPlugin):
+           *   isPipSupported()              -> { supported: boolean }
+           *   setAutoEnterEnabled({enabled})-> arm/disarm auto-PiP-on-leave
+           *   enterPip()                    -> manual/explicit entry (kept for completeness)
+           *   addListener('showPipView', fn)-> fires right before entering PiP
+           */
           @CapacitorPlugin(name = "PipPlugin")
           public class PipPlugin extends Plugin {
 
+              private static volatile PipPlugin instance;
               private volatile boolean autoEnterEnabled = false;
+
+              @Override
+              public void load() {
+                  super.load();
+                  instance = this;
+              }
+
+              public static PipPlugin getInstance() {
+                  return instance;
+              }
 
               @PluginMethod
               public void isPipSupported(PluginCall call) {
@@ -91,6 +117,7 @@ jobs:
                   else call.reject("Could not enter Picture-in-Picture mode.");
               }
 
+              /** Called directly from MainActivity.onUserLeaveHint() — must stay fast. */
               @SuppressLint("NewApi")
               public void maybeAutoEnterPip() {
                   if (!autoEnterEnabled) return;
@@ -287,10 +314,14 @@ jobs:
           package com.bitto.foclock;
 
           import android.os.Bundle;
-          import com.getcapacitor.BridgeActivity;
-          import com.getcapacitor.Plugin;
-          import com.getcapacitor.PluginHandle;
 
+          import com.getcapacitor.BridgeActivity;
+
+          /**
+           * If you already have a MainActivity.java in your project, don't replace it —
+           * just add the registerPlugin(...) lines and the onUserLeaveHint() override
+           * to your existing file, and keep the rest as-is.
+           */
           public class MainActivity extends BridgeActivity {
               @Override
               public void onCreate(Bundle savedInstanceState) {
@@ -300,16 +331,16 @@ jobs:
                   super.onCreate(savedInstanceState);
               }
 
+              // Fired right as the user presses home / switches apps — the correct,
+              // reliable moment to call enterPictureInPictureMode(). Reaches the
+              // plugin via its own static instance rather than Bridge.getPluginHandle(),
+              // which Capacitor 6 no longer exposes publicly.
               @Override
               public void onUserLeaveHint() {
                   super.onUserLeaveHint();
-                  if (getBridge() == null) return;
-                  PluginHandle handle = getBridge().getPluginHandle("PipPlugin");
-                  if (handle != null) {
-                      Plugin plugin = handle.getInstance();
-                      if (plugin instanceof PipPlugin) {
-                          ((PipPlugin) plugin).maybeAutoEnterPip();
-                      }
+                  PipPlugin plugin = PipPlugin.getInstance();
+                  if (plugin != null) {
+                      plugin.maybeAutoEnterPip();
                   }
               }
           }
