@@ -9,13 +9,18 @@ var D = {
   theme: localStorage.getItem('fl_th')||'dark',
   name: localStorage.getItem('fl_nm')||'',
   streak: JSON.parse(localStorage.getItem('fl_st')||'{"c":0,"d":""}'),
-  lock: localStorage.getItem('fl_lk') !== '0'
+  lock: localStorage.getItem('fl_lk') !== '0',
+  sessNotif: localStorage.getItem('fl_sn') !== '0',
+  voiceInput: localStorage.getItem('fl_vi') !== '0',
+  pipKeepAwake: localStorage.getItem('fl_pka') === '1',
+  dndSession: localStorage.getItem('fl_dnd') === '1'
 };
 
 var CUR = null;
 var STMR = null, PNTMR = null, REMTMR = null, WL = null;
 var ACTX = null, ANODES = {}, CURNAMB = null, CURLOFI = null, CUR_LOFI_INDEX = 0;
 var PCHART = null, PERIOD = 'week';
+var PERIOD_OFFSET = 0; // 0 = current week/month, negative = further back
 var SUBJ_PERIOD = 'all', SUBJ_FROM = '', SUBJ_TO = '';
 var MANS = 0, SELSUBJ = '', SELT = 30, SESS_SUBJS = [];
 var THEME_MQ = window.matchMedia('(prefers-color-scheme: dark)');
@@ -45,11 +50,18 @@ function saveSessionState(){
 function clearSessionState(){ localStorage.removeItem('fl_cur'); }
 function syncReminderLoop(){
   clearInterval(REMTMR); clearInterval(PNTMR);
-  if(!CUR) return;
+  if(!CUR || !D.sessNotif) return;
   if(CUR.paused){
     PNTMR = setInterval(function(){ notifyApp('Foc Lock','Session paused. Get back to studying!',{tag:'paused-reminder',requireInteraction:true}); }, 300000);
     return;
   }
+  // On native, scheduleNativeSessionReminders() already handed the OS a full
+  // batch of 5-min alarms that fire independent of JS. Running this
+  // setInterval too meant BOTH fired around the same time -> duplicate
+  // notification every ~5 min whenever the JS was still alive. Native alarms
+  // alone are the reliable path (they survive backgrounding/sleep), so skip
+  // this loop entirely on native and let them be the single source of truth.
+  if(isNativeApp()) return;
   REMTMR = setInterval(function(){
     notifyApp('Foc Lock', CUR.lock ? 'Stay focused. Your session is still running.' : 'Study check-in: are you still studying?', {tag:'study-check',requireInteraction:false});
   }, 300000);
@@ -150,6 +162,10 @@ function persistLocal(){
   localStorage.setItem('fl_g',D.goal);
   localStorage.setItem('fl_th',D.theme);
   localStorage.setItem('fl_lk',D.lock?'1':'0');
+  localStorage.setItem('fl_sn',D.sessNotif?'1':'0');
+  localStorage.setItem('fl_vi',D.voiceInput?'1':'0');
+  localStorage.setItem('fl_pka',D.pipKeepAwake?'1':'0');
+  localStorage.setItem('fl_dnd',D.dndSession?'1':'0');
   if((D.name||'').trim()) localStorage.setItem('fl_nm',D.name.trim());
   else localStorage.removeItem('fl_nm');
   localStorage.setItem('fl_st',JSON.stringify(D.streak));
@@ -217,14 +233,16 @@ function updateAuthUI(){
   var email=signed?(AUTH.user.email||'Signed in'):'Not signed in';
   var displayName=currentDisplayName();
   var title=document.getElementById('auth-card-title');
-  var nameBox=document.getElementById('auth-card-name');
+  var emailBox=document.getElementById('auth-card-email');
+  var avatar=document.getElementById('auth-card-avatar');
   var sub=document.getElementById('auth-card-sub');
   var chip=document.getElementById('auth-card-chip');
   var btn=document.getElementById('auth-card-btn');
   var nameBtn=document.getElementById('auth-card-name-btn');
   var hdr=document.querySelector('#hdr .hdr-btns .ibtn');
   if(title)title.textContent=signed?(displayName||email):'Not signed in';
-  if(nameBox)nameBox.textContent=signed?('Display name: '+(displayName||'Not set')):'No display name set';
+  if(emailBox)emailBox.textContent=signed?email:'Sign in to sync across devices';
+  if(avatar)avatar.textContent=signed?((displayName||email||'?').trim().charAt(0).toUpperCase()||'?'):'?';
   if(sub)sub.textContent=signed?'Your study data syncs across devices. Changes upload automatically when you are signed in.':'Sign in to sync your study data across devices. Local storage still works offline.';
   if(chip)chip.textContent=signed?(CLOUD_READY?'Cloud sync on':'Preparing cloud sync...'):'Local only';
   if(btn){ btn.textContent=signed?'Sign Out':'Sign In'; btn.onclick=signed?signOut:openAuth; }
@@ -270,11 +288,23 @@ function closeAuth(){ document.getElementById('auth-modal').classList.remove('op
 function showAuthError(msg){ var err=document.getElementById('auth-error'); if(!err)return; err.textContent=msg; err.style.display=msg?'block':'none'; }
 function openNameEditor(){
   var current=currentDisplayName();
-  var next=prompt('Enter your display name:',current);
-  if(next===null)return;
-  next=String(next||'').trim();
-  if(!next){ toast('Name cannot be empty.'); return; }
-  saveDisplayName(next); syncNameFromAuth(); updateAuthUI(); updateGreeting(); scheduleCloudSave(); toast('Name updated');
+  var inp=document.getElementById('name-modal-input');
+  var err=document.getElementById('name-modal-error');
+  if(inp)inp.value=current;
+  if(err){ err.style.display='none'; err.textContent=''; }
+  setBlurState(true);
+  document.getElementById('name-modal').classList.add('open');
+  setTimeout(function(){ if(inp){ inp.focus(); inp.select(); } },50);
+}
+function closeNameModal(){ document.getElementById('name-modal').classList.remove('open'); setBlurState(false); }
+function confirmNameEdit(){
+  var inp=document.getElementById('name-modal-input');
+  var err=document.getElementById('name-modal-error');
+  var next=String((inp&&inp.value)||'').trim();
+  if(!next){ if(err){ err.textContent='Name cannot be empty.'; err.style.display='block'; } return; }
+  saveDisplayName(next); syncNameFromAuth(); updateAuthUI(); updateGreeting(); scheduleCloudSave();
+  closeNameModal();
+  toast('Name updated');
 }
 function togglePasswordVisibility(id,btn){
   var inp=document.getElementById(id); if(!inp)return;
@@ -630,15 +660,17 @@ async function confirmNewPassword(){
 // ===== INIT =====
 function init(){
   ensureDefaults(); persistLocal(); applyTheme(D.theme);
+  ensureDndBypassChannels();
   document.getElementById('goal-inp').value=D.goal;
   document.getElementById('date-disp').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  updHome(); updateGreeting(); renderSubjList(); renderRems(); renderBadges(); renderGoals(); updXP();
+  updHome(); updateGreeting(); renderSubjList(); renderRems(); renderBadges(); renderGoals(); updXP(); renderSettingsToggles();
   initChart(); renderLofi(); renderBengaliStations(); updateSessionMusicUI();
   document.getElementById('daily-tip').textContent=getTip();
   document.getElementById('sug-routine').textContent=getRoutine();
   checkRems(); setInterval(checkRems,60000);
   initNotifServiceWorker();
-  if(isNativeApp()){ setTimeout(function(){ ensureNativeNotifPermission(); },1000); }
+  if(isNativeApp()){ setTimeout(function(){ ensureNativeNotifPermission().then(function(){ scheduleAllNativeDailyReminders(); }); },1000); }
+  setupNativeLifecycleListeners();
   document.addEventListener('visibilitychange',onVis);
   restoreSessionState(); bootSupabase();
   window.addEventListener('online', function(){
@@ -767,6 +799,7 @@ function gSub(id,_skipHistory){
   var prevSub = _currentSub();
   document.querySelectorAll('#scr-more .subp').forEach(function(s){s.classList.remove('active');});
   var el=document.getElementById(id); if(el)el.classList.add('active');
+  if(id==='sub-set') renderSettingsToggles();
   var contentElSub=document.getElementById('content');
   if(contentElSub)contentElSub.scrollTop=0;
   if(!_skipHistory){
@@ -804,7 +837,7 @@ window.addEventListener('popstate',function(e){
   if(SESS_MIN){ maximizeSess(); history.pushState(s,'',''); return; }
 
   /* 4. Other modals */
-  var modals=['session-calc-modal','mgate','sm','auth-modal','manual-modal','edit-session-modal','friends-modal'];
+  var modals=['session-calc-modal','mgate','sm','auth-modal','manual-modal','edit-session-modal','friends-modal','name-modal'];
   for(var i=0;i<modals.length;i++){
     var m=document.getElementById(modals[i]);
     if(m&&(m.classList.contains('open')||m.classList.contains('active'))&&m.id!=='sess'){
@@ -815,6 +848,7 @@ window.addEventListener('popstate',function(e){
       else if(modals[i]==='manual-modal')closeManualModal();
       else if(modals[i]==='edit-session-modal')closeEditModal();
       else if(modals[i]==='friends-modal')closeFriendsModal();
+      else if(modals[i]==='name-modal')closeNameModal();
       history.pushState(s,'','');
       return;
     }
@@ -961,20 +995,24 @@ function setSessionFullscreenUI(){
   var btn=document.getElementById('fs-toggle-btn');
   var sess=document.getElementById('sess');
   var on=!!(CUR&&CUR.lock);
-  if(btn)btn.textContent=on?'Exit Fullscreen':'Fullscreen';
+  if(btn){
+    var lbl=btn.querySelector('.fs-btn-lbl');
+    if(!lbl){ lbl=document.createElement('span'); lbl.className='fs-btn-lbl'; btn.appendChild(lbl); }
+    lbl.textContent=on?'Exit Fullscreen':'Fullscreen';
+  }
   if(sess)sess.classList.toggle('sess-immersive',on);
 }
 document.addEventListener('fullscreenchange',function(){
   // Browser fullscreen can be exited natively (Esc key) without going through
   // our toggle button — keep the immersive UI + lock state in sync either way.
   if(!document.fullscreenElement&&CUR&&CUR.lock){
-    CUR.lock=false; relWL(); syncReminderLoop(); saveSessionState(); setSessionFullscreenUI();
+    CUR.lock=false; syncWakeLock(); syncReminderLoop(); saveSessionState(); setSessionFullscreenUI();
     var sm=document.getElementById('s-mode');
     if(sm)sm.textContent=CUR.timed?(Math.round(CUR.total/60)+' min session • Relaxed mode'):'Open session • Relaxed mode';
   }
 });
-async function enterFullscreenMode(){ try{ if(document.fullscreenElement==null&&document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); }catch(e){} await acqWL(); }
-async function exitFullscreenMode(){ try{ if(document.fullscreenElement&&document.exitFullscreen) await document.exitFullscreen(); }catch(e){} relWL(); }
+async function enterFullscreenMode(){ try{ if(document.fullscreenElement==null&&document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); }catch(e){} await syncWakeLock(); }
+async function exitFullscreenMode(){ try{ if(document.fullscreenElement&&document.exitFullscreen) await document.exitFullscreen(); }catch(e){} syncWakeLock(); }
 async function toggleSessionFullscreen(){
   if(!CUR)return;
   if(!CUR.lock){ CUR.lock=true; await enterFullscreenMode(); document.getElementById('s-mode').textContent=CUR.timed?(Math.round(CUR.total/60)+' min session • Fullscreen lock'):'Open session • Fullscreen lock'; toast('Fullscreen lock enabled.'); }
@@ -1005,8 +1043,9 @@ function startSess(){
   var sst=document.getElementById('s-status'); if(sst&&!CUR.paused)sst.textContent='In Progress';
   updateSessionXPDisplay(); syncReminderLoop(); saveSessionState(); updTDisp(); setSessionFullscreenUI();
   clearInterval(STMR); STMR=setInterval(tick,1000);
-  notifyApp('Foc Lock','Session started. Stay focused!',{tag:'session-start',requireInteraction:false});
+  if(D.sessNotif) notifyApp('Foc Lock','Session started. Stay focused!',{tag:'session-start',requireInteraction:false});
   scheduleNativeSessionReminders();
+  enableSessionDnd();
 }
 function tick(){
   if(!CUR||CUR.paused)return;
@@ -1097,30 +1136,17 @@ async function minimizeSess(){
   document.getElementById('sess').classList.remove('active');
   document.getElementById('rbn').classList.remove('show');
 
-  /* Native Android PiP — only fires when the user taps this minimize
-     button, via our own tiny native plugin (PipPlugin), not automatically
-     when leaving the app. Real system PiP always captures the *entire*
-     screen scaled down — it can't isolate one floating div. So instead of
-     reusing #sess-pip (a small box meant to float inside the page), we
-     swap the whole visible page for one clean full-screen view the instant
-     PiP starts, so what gets captured is just the timer, nothing else. */
-  if(isNativeApp() && window.Capacitor.Plugins.PipPlugin){
-    try{
-      var sup = await window.Capacitor.Plugins.PipPlugin.isPipSupported();
-      if(sup && sup.supported){
-        ensureNativePipView();
-        var npipSubj=document.getElementById('npip-subj');
-        if(npipSubj) npipSubj.textContent=CUR.subj||'Session';
-        document.body.classList.add('native-pip-active');
-        updPipDisp();
-        await window.Capacitor.Plugins.PipPlugin.enterPip();
-        return;
-      }
-    }catch(e){ document.body.classList.remove('native-pip-active'); /* fall through to web PiP paths */ }
-  }
+  /* Minimizing used to jump straight into native system PiP — the app
+     visually vanished into a floating OS window immediately. Now it just
+     shows the in-app floating mini player (#sess-pip) and you stay inside
+     the app. System PiP only kicks in automatically if you actually leave
+     the app (home button / app switch) while minimized — see the
+     appStateChange listener in setupNativeLifecycleListeners(). */
 
-  /* Try Document Picture-in-Picture (Chrome 116+, always on top of all tabs) */
-  if(window.documentPictureInPicture){
+  /* Try Document Picture-in-Picture (Chrome 116+ desktop/web only — not
+     available inside the Android WebView, so native app always falls
+     through to the floating div below). */
+  if(!isNativeApp() && window.documentPictureInPicture){
     try{
       PIP_WIN=await window.documentPictureInPicture.requestWindow({width:260,height:200});
       var accentColor='#3d8fe0';
@@ -1157,10 +1183,65 @@ async function minimizeSess(){
       updPipDisp(); return;
     }catch(e){ /* API not available or user denied, fall through to floating div */ }
   }
-  /* Fallback: draggable floating div */
+  /* In-app floating mini player — used on native app always, and as the
+     web fallback when Document PiP isn't available. */
   document.getElementById('sess-pip').classList.add('show');
   if(CUR.subj)document.getElementById('pip-subj').textContent=CUR.subj;
   updPipDisp();
+  syncWakeLock();
+}
+
+/* Native Android PiP — only fires when the app is actually being left
+   (home button / app switch / screen off) while a session is minimized,
+   via our own tiny native plugin (PipPlugin). Real system PiP always
+   captures the *entire* screen scaled down — it can't isolate one floating
+   div — so the instant we're about to leave, swap the visible page for one
+   clean full-screen timer view so that's what gets captured. */
+async function enterNativePipIfLeaving(){
+  if(!CUR || !SESS_MIN || !isNativeApp() || !window.Capacitor.Plugins.PipPlugin) return;
+  try{
+    var sup = await window.Capacitor.Plugins.PipPlugin.isPipSupported();
+    if(!sup || !sup.supported) return;
+    ensureNativePipView();
+    var npipSubj=document.getElementById('npip-subj');
+    if(npipSubj) npipSubj.textContent=CUR.subj||'Session';
+    document.body.classList.add('native-pip-active');
+    updPipDisp();
+    var floatPip=document.getElementById('sess-pip');
+    if(floatPip) floatPip.classList.remove('show'); // system PiP takes over now
+    await window.Capacitor.Plugins.PipPlugin.enterPip();
+    syncWakeLock();
+  }catch(e){ document.body.classList.remove('native-pip-active'); }
+}
+function setupNativeLifecycleListeners(){
+  if(!isNativeApp()) return;
+  try{
+    var AppPlugin = window.Capacitor.Plugins.App;
+    if(!AppPlugin) return;
+    AppPlugin.addListener('appStateChange', function(state){
+      if(!state.isActive){
+        enterNativePipIfLeaving();
+      } else {
+        if(document.body.classList.contains('native-pip-active')){
+          /* Back in the app — Android auto-exits system PiP on its own when
+             you tap back in, so just reflect that in our UI. If a session is
+             still minimized, drop back to the in-app floating mini player
+             rather than the full session view. */
+          document.body.classList.remove('native-pip-active');
+          if(CUR && SESS_MIN){
+            var floatPip=document.getElementById('sess-pip');
+            if(floatPip) floatPip.classList.add('show');
+            if(CUR.subj)document.getElementById('pip-subj').textContent=CUR.subj;
+            updPipDisp();
+          }
+          syncWakeLock();
+        }
+        // Covers returning from the system "Do Not Disturb access" settings
+        // screen after toggleDndSession() sent the user there.
+        if(D.dndSession && CUR && !DND_ACTIVE) enableSessionDnd();
+      }
+    });
+  }catch(e){}
 }
 
 function maximizeSess(){
@@ -1169,6 +1250,7 @@ function maximizeSess(){
   if(PIP_WIN){ try{ PIP_WIN.close(); }catch(e){} PIP_WIN=null; }
   document.getElementById('sess-pip').classList.remove('show');
   if(CUR){ document.getElementById('sess').classList.add('active'); updTDisp(); }
+  syncWakeLock();
 }
 
 function updPipDisp(){
@@ -1254,6 +1336,7 @@ function endSess(done){
   clearInterval(STMR);clearInterval(PNTMR);clearInterval(REMTMR);
   cancelNativeSessionReminders();
   relWL();stopSM();
+  disableSessionDnd();
   try{ if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen(); }catch(e){}
   stopPauseCountdown();
   CUR.el=getSessionElapsed();
@@ -1285,7 +1368,7 @@ function recalcStreak(){
 // ===== VISIBILITY =====
 function onVis(){
   if(!CUR||CUR.paused||!CUR.lock){ if(CUR)saveSessionState(); return; }
-  if(document.hidden){ document.getElementById('rbn').classList.add('show'); notifyApp('Foc Lock','Get back to your study session!',{tag:'focus-loss',requireInteraction:true}); }
+  if(document.hidden){ document.getElementById('rbn').classList.add('show'); if(D.sessNotif) notifyApp('Foc Lock','Get back to your study session!',{tag:'focus-loss',requireInteraction:true}); }
   if(CUR)saveSessionState();
 }
 function retSess(){ document.getElementById('rbn').classList.remove('show'); }
@@ -1293,6 +1376,117 @@ function retSess(){ document.getElementById('rbn').classList.remove('show'); }
 // ===== WAKE LOCK =====
 async function acqWL(){ try{ if(CUR&&CUR.lock&&'wakeLock' in navigator) WL=await navigator.wakeLock.request('screen'); }catch(e){} }
 function relWL(){ if(WL){ try{WL.release();}catch(e){} WL=null; } }
+/* Unified wake-lock decision: keep the screen on for fullscreen-lock
+   sessions (as before), OR — if the "Keep Screen Awake in Mini Player"
+   setting is on — while the timer is minimized (in-app floating player or
+   native system PiP), so the countdown stays visible instead of the
+   screen sleeping mid-PiP. */
+async function syncWakeLock(){
+  try{
+    if(!('wakeLock' in navigator)) return;
+    var want = !!(CUR && !CUR.paused && (CUR.lock || (D.pipKeepAwake && SESS_MIN)));
+    if(want){ if(!WL) WL=await navigator.wakeLock.request('screen'); }
+    else if(WL){ try{WL.release();}catch(e){} WL=null; }
+  }catch(e){}
+}
+async function togglePipKeepAwake(v){
+  D.pipKeepAwake = !!v;
+  localStorage.setItem('fl_pka', D.pipKeepAwake?'1':'0');
+  scheduleCloudSave();
+  await syncWakeLock();
+  toast(D.pipKeepAwake ? 'Screen will stay awake while the mini player is up.' : 'Screen can sleep during the mini player.');
+}
+
+// ===== SESSION DO NOT DISTURB =====
+/* Expects a native DndPlugin (same pattern as PipPlugin) exposing:
+     isDndSupported() -> { supported: boolean }
+     hasDndAccess()   -> { granted: boolean }   // Notification Policy Access
+     requestDndAccess() -> void                 // opens system settings screen
+     enable()  -> void   // sets interruption filter to PRIORITY (silences other apps)
+     disable() -> void   // restores interruption filter to ALL (normal)
+   For Foc Lock's own notifications to still ring/vibrate normally while the
+   phone is in this Priority DND mode, the native side needs to create the
+   "session-alerts" and "study-reminders" channels with
+   NotificationChannel.setBypassDnd(true) — that's a one-line addition
+   wherever those channels get created natively (or, if the plugin creates
+   them itself, right there). Without that bypass flag, DND would silence
+   Foc Lock too, which defeats the point.
+   If your existing DndPlugin uses different method names, tell me and I'll
+   adjust this file to match — everything below fails silently/harmlessly
+   if a method is missing, so nothing breaks in the meantime. */
+var DND_ACTIVE = false;
+
+/* Must run BEFORE anything else creates the "session-alerts" / "study-reminders"
+   channels (ensureSessionAlertsChannel / ensureReminderChannel below, and
+   LocalNotifications.createChannel() calls generally) — Android locks a
+   channel's bypassDnd flag in at first creation and ignores changes after
+   that, so this has to win the race. Safe to call every launch: if the
+   channel already exists, DndPlugin.ensureBypassChannels() just leaves it
+   alone (see the native plugin for why). */
+async function ensureDndBypassChannels(){
+  if(!isNativeApp()) return;
+  try{
+    var DP = window.Capacitor.Plugins.DndPlugin;
+    if(DP && DP.ensureBypassChannels) await DP.ensureBypassChannels();
+  }catch(e){}
+}
+
+async function hasDndAccess(){
+  if(!isNativeApp()) return false;
+  try{
+    var DP = window.Capacitor.Plugins.DndPlugin;
+    if(!DP) return false;
+    var sup = await DP.isDndSupported();
+    if(!sup || sup.supported===false) return false;
+    var acc = await DP.hasDndAccess();
+    return !!(acc && acc.granted);
+  }catch(e){ return false; }
+}
+async function requestDndAccess(){
+  if(!isNativeApp()) return;
+  try{
+    var DP = window.Capacitor.Plugins.DndPlugin;
+    if(DP && DP.requestDndAccess) await DP.requestDndAccess();
+  }catch(e){}
+}
+async function enableSessionDnd(){
+  if(!D.dndSession || !isNativeApp() || !CUR) return;
+  try{
+    var DP = window.Capacitor.Plugins.DndPlugin;
+    if(!DP) return;
+    var ok = await hasDndAccess();
+    if(!ok) return; // permission not granted yet — toggleDndSession() already nudges for it
+    await DP.enable();
+    DND_ACTIVE = true;
+  }catch(e){}
+}
+async function disableSessionDnd(){
+  if(!DND_ACTIVE || !isNativeApp()) return;
+  try{
+    var DP = window.Capacitor.Plugins.DndPlugin;
+    if(DP && DP.disable) await DP.disable();
+  }catch(e){}
+  DND_ACTIVE = false;
+}
+async function toggleDndSession(v){
+  D.dndSession = !!v;
+  localStorage.setItem('fl_dnd', D.dndSession?'1':'0');
+  scheduleCloudSave();
+  if(!D.dndSession){
+    toast('Do Not Disturb during sessions is off.');
+    disableSessionDnd();
+    return;
+  }
+  if(!isNativeApp()){ toast('This only works in the installed app, not the browser.'); return; }
+  var ok = await hasDndAccess();
+  if(ok){
+    toast('Do Not Disturb will activate during sessions.');
+    if(CUR) enableSessionDnd();
+  } else {
+    toast('Grant "Do Not Disturb access" for Foc Lock on the screen that just opened, then come back.');
+    requestDndAccess();
+  }
+}
 
 // ===== MATH GATE =====
 function reqPause(){ genMQ(); document.getElementById('mgate').classList.add('open'); document.getElementById('m-ans').value=''; }
@@ -1315,9 +1509,9 @@ function pauseSess(){
   document.getElementById('btn-pause').style.display='none';
   document.getElementById('btn-resume').style.display='flex';
   document.getElementById('btn-end').style.display='flex';
-  relWL(); syncReminderLoop(); saveSessionState(); updTDisp();
+  syncWakeLock(); syncReminderLoop(); saveSessionState(); updTDisp();
   cancelNativeSessionReminders();
-  notifyApp('Foc Lock','Session paused. Get back to studying!',{tag:'session-paused',requireInteraction:true});
+  if(D.sessNotif) notifyApp('Foc Lock','Session paused. Get back to studying!',{tag:'session-paused',requireInteraction:true});
 }
 function resumeSess(){
   if(!CUR)return;
@@ -1326,9 +1520,9 @@ function resumeSess(){
   document.getElementById('btn-pause').style.display='flex';
   document.getElementById('btn-resume').style.display='none';
   document.getElementById('btn-end').style.display='none';
-  if(CUR.lock)acqWL(); syncReminderLoop(); saveSessionState(); updTDisp();
+  syncWakeLock(); syncReminderLoop(); saveSessionState(); updTDisp();
   scheduleNativeSessionReminders();
-  notifyApp('Foc Lock','Session resumed.',{tag:'session-resumed',requireInteraction:false});
+  if(D.sessNotif) notifyApp('Foc Lock','Session resumed.',{tag:'session-resumed',requireInteraction:false});
 }
 
 // ===== NOTIFICATIONS =====
@@ -1373,16 +1567,41 @@ async function ensureNativeNotifPermission(){
 }
 
 var NATIVE_NOTIF_ID_COUNTER = 1000;
+
+/* Dedicated channel for session-related pushes (start/pause/resume/complete,
+   5-min check-ins, achievements). Android silently downgrades notifications
+   posted without a channelId to the low-importance default channel — no
+   heads-up popup, no vibration, easy to mistake for "phone is in DND". */
+var SESSION_CHANNEL_READY = false;
+async function ensureSessionAlertsChannel(){
+  if(!isNativeApp() || SESSION_CHANNEL_READY) return;
+  try{
+    var LN = window.Capacitor.Plugins.LocalNotifications;
+    await LN.createChannel({
+      id: 'session-alerts',
+      name: 'Session Alerts',
+      description: 'Session start/pause/check-in and completion alerts',
+      importance: 5,   // IMPORTANCE_HIGH: heads-up banner + sound + vibration
+      visibility: 1,
+      vibration: true,
+      lights: true
+    });
+    SESSION_CHANNEL_READY = true;
+  }catch(e){}
+}
+
 async function sendNativeNotif(t,b,o){
   if(!isNativeApp()) return false;
   try{
+    await ensureSessionAlertsChannel();
     var LN = window.Capacitor.Plugins.LocalNotifications;
     await LN.schedule({
       notifications:[{
         id: NATIVE_NOTIF_ID_COUNTER++,
         title: t,
         body: String(b||''),
-        schedule:{ at: new Date(Date.now()+100) }
+        channelId: 'session-alerts',
+        schedule:{ at: new Date(Date.now()+100), allowWhileIdle: true }
       }]
     });
     return true;
@@ -1393,13 +1612,17 @@ async function sendNativeNotif(t,b,o){
    Android suspends JS timers in the background, so instead of relying on
    setInterval to "check and fire" every 5 minutes, we hand Android's own
    alarm system a full batch of future-timed notifications up front. The OS
-   fires them independent of whether our JS is still running. */
+   fires them independent of whether our JS is still running.
+   allowWhileIdle:true is required so these still fire while the phone is
+   asleep/in Doze — without it Android batches or drops them unpredictably,
+   which is why delivery used to be hit-or-miss. */
 var NATIVE_REMINDER_BASE_ID = 5000;
 var NATIVE_REMINDER_COUNT = 24; // covers the next 2 hours, every 5 min
 
 async function scheduleNativeSessionReminders(){
-  if(!isNativeApp() || !CUR) return;
+  if(!isNativeApp() || !CUR || !D.sessNotif) return;
   try{
+    await ensureSessionAlertsChannel();
     var LN = window.Capacitor.Plugins.LocalNotifications;
     var notifications = [];
     var now = Date.now();
@@ -1411,7 +1634,8 @@ async function scheduleNativeSessionReminders(){
         id: NATIVE_REMINDER_BASE_ID + i,
         title: 'Foc Lock',
         body: body,
-        schedule: { at: new Date(now + i * 300000) }
+        channelId: 'session-alerts',
+        schedule: { at: new Date(now + i * 300000), allowWhileIdle: true }
       });
     }
     await LN.schedule({ notifications: notifications });
@@ -1425,6 +1649,66 @@ async function cancelNativeSessionReminders(){
     var ids = [];
     for(var i = 1; i <= NATIVE_REMINDER_COUNT; i++) ids.push({id: NATIVE_REMINDER_BASE_ID + i});
     await LN.cancel({ notifications: ids });
+  }catch(e){}
+}
+
+/* ── Native daily study reminders (More → Reminders) ──
+   checkRems() only fires while the app's JS is alive, which Android kills
+   in the background. So the user-set reminder times (D.rems) need to be
+   handed to the OS as recurring alarms, same idea as the session reminders
+   above. schedule.on:{hour,minute} with no day/date repeats every day at
+   that time. A dedicated channel with vibration:true + importance:5 makes
+   sure it buzzes even in Do Not Disturb-adjacent "priority" setups. */
+var NATIVE_DAILY_REMINDER_BASE_ID = 9000;
+var NATIVE_DAILY_REMINDER_MAX = 200; // generous headroom for however many reminders the user adds
+
+async function ensureReminderChannel(){
+  if(!isNativeApp()) return;
+  try{
+    var LN = window.Capacitor.Plugins.LocalNotifications;
+    await LN.createChannel({
+      id: 'study-reminders',
+      name: 'Study Reminders',
+      description: 'Daily study reminder alerts',
+      importance: 5,        // IMPORTANCE_HIGH: heads-up + sound + vibration
+      visibility: 1,
+      vibration: true,
+      lights: true
+    });
+  }catch(e){}
+}
+
+async function scheduleAllNativeDailyReminders(){
+  if(!isNativeApp()) return;
+  try{
+    var LN = window.Capacitor.Plugins.LocalNotifications;
+
+    // Always clear the whole block first, then re-add whatever is currently on.
+    // Simpler and safer than trying to diff old vs new reminder lists.
+    var cancelIds = [];
+    for(var i = 0; i < NATIVE_DAILY_REMINDER_MAX; i++) cancelIds.push({id: NATIVE_DAILY_REMINDER_BASE_ID + i});
+    try{ await LN.cancel({ notifications: cancelIds }); }catch(e){}
+
+    var ok = await ensureNativeNotifPermission();
+    if(!ok) return;
+    await ensureReminderChannel();
+
+    var notifications = [];
+    (D.rems||[]).forEach(function(r, i){
+      if(!r.on || !r.t) return;
+      var parts = r.t.split(':');
+      var hh = parseInt(parts[0], 10), mm = parseInt(parts[1], 10);
+      if(isNaN(hh) || isNaN(mm)) return;
+      notifications.push({
+        id: NATIVE_DAILY_REMINDER_BASE_ID + i,
+        title: 'Foc Lock – Study Reminder',
+        body: r.l || 'Time to study!',
+        channelId: 'study-reminders',
+        schedule: { on: { hour: hh, minute: mm }, allowWhileIdle: true },
+        extra: { type: 'daily-reminder', remId: r.id }
+      });
+    });
+    if(notifications.length) await LN.schedule({ notifications: notifications });
   }catch(e){}
 }
 
@@ -1463,15 +1747,38 @@ function enableBrowserNotifications(){
   }
   ensureBrowserNotifications().then(function(ok){ toast(ok?'Browser notifications enabled.':'Notifications are blocked.'); });
 }
-function testBrowserNotification(){
-  if(isNativeApp()){
-    ensureNativeNotifPermission().then(function(ok){
-      if(ok) notifyApp('Foc Lock test','This is a native notification test.',{tag:'test-notification',requireInteraction:true});
-      else toast('Notifications are blocked.');
-    });
-    return;
+function toggleSessionNotif(v){
+  D.sessNotif = !!v;
+  localStorage.setItem('fl_sn', D.sessNotif?'1':'0');
+  scheduleCloudSave();
+  if(CUR){
+    // Apply immediately to the running session rather than waiting for the
+    // next pause/resume/start to pick it up.
+    if(D.sessNotif){ syncReminderLoop(); scheduleNativeSessionReminders(); }
+    else { clearInterval(REMTMR); clearInterval(PNTMR); cancelNativeSessionReminders(); }
   }
-  ensureBrowserNotifications().then(function(ok){ if(ok)notifyApp('Foc Lock test','This is a browser notification test.',{tag:'test-notification',requireInteraction:true}); else toast('Notifications are blocked.'); });
+  toast(D.sessNotif ? 'Session notifications on.' : 'Session notifications off.');
+}
+async function toggleVoiceInput(v){
+  D.voiceInput = !!v;
+  localStorage.setItem('fl_vi', D.voiceInput?'1':'0');
+  scheduleCloudSave();
+  if(D.voiceInput && isNativeApp()){
+    var ok = await ensureNativeVoicePermission();
+    toast(ok ? 'Voice input on.' : 'Microphone permission denied — voice input won\'t work until it\'s granted.');
+  } else {
+    toast(D.voiceInput ? 'Voice input on.' : 'Voice input off.');
+  }
+}
+function renderSettingsToggles(){
+  var el = document.getElementById('sess-notif-toggle');
+  if(el) el.checked = !!D.sessNotif;
+  var vel = document.getElementById('voice-input-toggle');
+  if(vel) vel.checked = !!D.voiceInput;
+  var pel = document.getElementById('pip-awake-toggle');
+  if(pel) pel.checked = !!D.pipKeepAwake;
+  var del = document.getElementById('dnd-session-toggle');
+  if(del) del.checked = !!D.dndSession;
 }
 
 // ===== AUDIO =====
@@ -1723,15 +2030,35 @@ function initChart(){
       }
     }
   });
+  updPeriodLabel();
+}
+function startOfWeek(d){
+  var dt=new Date(d); var day=dt.getDay(); var diff=(day===0?-6:1-day);
+  dt.setDate(dt.getDate()+diff); dt.setHours(0,0,0,0); return dt;
 }
 function getChartData(){
-  var labels=[],data=[]; var days=PERIOD==='week'?7:30;
-  for(var i=days-1;i>=0;i--){
-    var d=new Date(); d.setDate(d.getDate()-i);
-    var str=localDateStr(d);
-    labels.push(PERIOD==='week'?d.toLocaleDateString('en-US',{weekday:'short'}):d.getDate());
-    var m=Math.round(D.sess.filter(function(s){return s.d===str;}).reduce(function(a,s){return a+s.dur;},0)/60);
-    data.push(m);
+  var labels=[],data=[];
+  if(PERIOD==='week'){
+    var base=new Date(); base.setDate(base.getDate()+PERIOD_OFFSET*7);
+    var monday=startOfWeek(base);
+    for(var i=0;i<7;i++){
+      var d=new Date(monday); d.setDate(monday.getDate()+i);
+      var str=localDateStr(d);
+      labels.push(d.toLocaleDateString('en-US',{weekday:'short'}));
+      var m=Math.round(D.sess.filter(function(s){return s.d===str;}).reduce(function(a,s){return a+s.dur;},0)/60);
+      data.push(m);
+    }
+  } else {
+    var base=new Date(); base.setDate(1); base.setMonth(base.getMonth()+PERIOD_OFFSET);
+    var year=base.getFullYear(), month=base.getMonth();
+    var daysInMonth=new Date(year,month+1,0).getDate();
+    for(var day=1;day<=daysInMonth;day++){
+      var d=new Date(year,month,day);
+      var str=localDateStr(d);
+      labels.push(day);
+      var m=Math.round(D.sess.filter(function(s){return s.d===str;}).reduce(function(a,s){return a+s.dur;},0)/60);
+      data.push(m);
+    }
   }
   return{labels:labels,datasets:[{data:data,backgroundColor:PERIOD==='week'?'rgba(61,143,224,.6)':'rgba(61,143,224,.55)',hoverBackgroundColor:PERIOD==='week'?'rgba(155,125,255,.85)':'rgba(61,143,224,.85)',borderRadius:6,borderSkipped:false}]};
 }
@@ -1892,8 +2219,37 @@ function updDayChart(){
   });
 }
 
-function updChart(){ if(!PCHART)return; PCHART.data=getChartData(); PCHART.update(); }
-function setPeriod(p,el){ PERIOD=p; document.querySelectorAll('.ptab').forEach(function(t){t.classList.remove('active');}); el.classList.add('active'); updChart(); }
+function updChart(){ if(!PCHART)return; PCHART.data=getChartData(); PCHART.update(); updPeriodLabel(); }
+function setPeriod(p,el){ PERIOD=p; PERIOD_OFFSET=0; document.querySelectorAll('.ptab').forEach(function(t){t.classList.remove('active');}); el.classList.add('active'); updChart(); }
+function shiftPeriod(dir){
+  var next=PERIOD_OFFSET+dir;
+  if(next>0) return; // can't go past the current week/month
+  PERIOD_OFFSET=next;
+  updChart();
+}
+function updPeriodLabel(){
+  var el=document.getElementById('period-label');
+  var nextBtn=document.getElementById('period-next');
+  if(nextBtn) nextBtn.disabled = PERIOD_OFFSET>=0;
+  if(!el) return;
+  var now=new Date();
+  if(PERIOD==='week'){
+    var base=new Date(); base.setDate(base.getDate()+PERIOD_OFFSET*7);
+    var monday=startOfWeek(base);
+    var sunday=new Date(monday); sunday.setDate(monday.getDate()+6);
+    var sameMonth=monday.getMonth()===sunday.getMonth();
+    var lbl=sameMonth
+      ? monday.toLocaleDateString('en-US',{month:'short',day:'numeric'})+'\u2013'+sunday.getDate()
+      : monday.toLocaleDateString('en-US',{month:'short',day:'numeric'})+'\u2013'+sunday.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    if(monday.getFullYear()!==now.getFullYear()) lbl+=', '+monday.getFullYear();
+    el.textContent=lbl;
+  } else {
+    var base=new Date(); base.setDate(1); base.setMonth(base.getMonth()+PERIOD_OFFSET);
+    var lbl=base.toLocaleDateString('en-US',{month:'long'});
+    if(base.getFullYear()!==now.getFullYear()) lbl+=' '+base.getFullYear();
+    el.textContent=lbl;
+  }
+}
 function yesterday(){ var d=new Date(); d.setDate(d.getDate()-1); return localDateStr(d); }
 function setSubjPeriod(p){
   SUBJ_PERIOD=p;
@@ -2503,6 +2859,7 @@ function addRem(){
   localStorage.setItem('fl_r',JSON.stringify(D.rems)); scheduleCloudSave();
   document.getElementById('rem-lbl').value='';
   ensureBrowserNotifications();
+  scheduleAllNativeDailyReminders();
   renderRems(); renderRemPreview(); toast('Reminder added!');
 }
 function addManualSession(){
@@ -2525,7 +2882,7 @@ function addManualSession(){
   closeManualModal();
 }
 function rmRem(i){ D.rems.splice(i,1); localStorage.setItem('fl_r',JSON.stringify(D.rems)); scheduleCloudSave(); scheduleAllNativeDailyReminders(); renderRems(); renderRemPreview(); }
-function tglRem(i,v){ D.rems[i].on=v; localStorage.setItem('fl_r',JSON.stringify(D.rems)); scheduleCloudSave(); }
+function tglRem(i,v){ D.rems[i].on=v; localStorage.setItem('fl_r',JSON.stringify(D.rems)); scheduleCloudSave(); scheduleAllNativeDailyReminders(); }
 function checkRems(){
   var n=new Date(); var cur=pad(n.getHours())+':'+pad(n.getMinutes());
   var stamp=today()+' '+cur;
@@ -2730,6 +3087,7 @@ document.addEventListener('keydown', function(kev){
     if(document.getElementById('auth-modal').classList.contains('open')){closeAuth();kev.preventDefault();return;}
     if(document.getElementById('manual-modal').classList.contains('open')){closeManualModal();kev.preventDefault();return;}
     if(document.getElementById('edit-session-modal').classList.contains('open')){closeEditModal();kev.preventDefault();return;}
+    if(document.getElementById('name-modal').classList.contains('open')){closeNameModal();kev.preventDefault();return;}
     var pEsc=isCalcVisible();
     if(pEsc){ fcAC(pEsc); kev.preventDefault(); return; }
     return;
@@ -2864,7 +3222,6 @@ function toast(msg){
 var FOCO_EDGE_URL = SUPABASE_URL + '/functions/v1/foco-ai';
 var FOCO_HIST = []; // [{role:'user'|'model', parts:[{text:'...'}]}]
 var FOCO_ATTS = [];  // pending attachments
-var FOCO_TTS = false;
 var FOCO_RECOG = null;
 
 /* =========================================================
@@ -3381,7 +3738,6 @@ async function focoSend(){
       focoAddMsg('bot', reply);
     }
 
-    if(FOCO_TTS) focoSpeak(cleanReply || reply);
     try{ focoHistSave(); }catch(e){ console.error('Failed to save chat history:', e); }
   }catch(err){
     focoRmTyping(tid);
@@ -3508,6 +3864,19 @@ function focoRmTyping(id){
 
 /* File attachment */
 function focoPickFile(){ document.getElementById('foco-file-in').click(); }
+function focoToolsToggle(){
+  var bar = document.getElementById('foco-tools-bar');
+  var btn = document.getElementById('foco-plus-btn');
+  if(!bar) return;
+  var open = bar.classList.toggle('open');
+  if(btn) btn.classList.toggle('on', open);
+}
+function focoToolsClose(){
+  var bar = document.getElementById('foco-tools-bar');
+  var btn = document.getElementById('foco-plus-btn');
+  if(bar) bar.classList.remove('open');
+  if(btn) btn.classList.remove('on');
+}
 
 function focoGotFiles(files){
   Array.from(files).forEach(function(file){
@@ -3557,7 +3926,59 @@ function focoRenderAtts(){
 }
 
 /* Voice Input */
+/* Android's WebView doesn't implement the Web Speech API — window.SpeechRecognition
+   is simply undefined there, unlike a real Chrome browser tab. So on native we
+   route through @capacitor-community/speech-recognition, which talks to
+   Android's own SpeechRecognizer instead. Web keeps using the browser API. */
+async function ensureNativeVoicePermission(){
+  if(!isNativeApp()) return false;
+  try{
+    var SRP = window.Capacitor.Plugins.SpeechRecognition;
+    if(!SRP) return false;
+    var avail = await SRP.available();
+    if(!avail || avail.available === false) return false;
+    var perm = await SRP.checkPermissions();
+    if(perm.speechRecognition !== 'granted'){
+      perm = await SRP.requestPermissions();
+    }
+    return perm.speechRecognition === 'granted';
+  }catch(e){ return false; }
+}
+
+var FOCO_NATIVE_LISTENING = false;
+async function focoVoiceNative(){
+  var SRP = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SpeechRecognition;
+  var micBtn = document.getElementById('foco-mic-btn');
+  if(!SRP){ toast('Voice input needs a fresh app build to work.'); return; }
+  if(FOCO_NATIVE_LISTENING){
+    try{ await SRP.stop(); }catch(e){}
+    FOCO_NATIVE_LISTENING = false;
+    if(micBtn) micBtn.classList.remove('rec');
+    return;
+  }
+  var ok = await ensureNativeVoicePermission();
+  if(!ok){ toast('Microphone permission is needed for voice input.'); return; }
+  FOCO_NATIVE_LISTENING = true;
+  if(micBtn) micBtn.classList.add('rec');
+  try{
+    var result = await SRP.start({ language:'en-US', maxResults:1, prompt:'Speak now', partialResults:false, popup:false });
+    var tx = result && result.matches && result.matches[0];
+    if(tx){
+      var inp = document.getElementById('foco-inp');
+      inp.value = (inp.value + ' ' + tx).trim();
+      focoGrow(inp);
+    }
+  }catch(e){
+    toast('Voice input error. Try again.');
+  }finally{
+    FOCO_NATIVE_LISTENING = false;
+    if(micBtn) micBtn.classList.remove('rec');
+  }
+}
+
 function focoVoice(){
+  if(!D.voiceInput){ toast('Voice input is off. Enable it in Settings.'); return; }
+  if(isNativeApp()){ focoVoiceNative(); return; }
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if(!SR){ toast('Voice input not supported in this browser.'); return; }
 
@@ -3588,20 +4009,7 @@ function focoVoice(){
   FOCO_RECOG.start();
 }
 
-/* Text-to-Speech */
-function focoToggleTTS(){
-  FOCO_TTS = !FOCO_TTS;
-  var btn = document.getElementById('foco-tts-btn');
-  if(FOCO_TTS){
-    btn.classList.add('on');
-    toast('TTS on — responses will be read aloud');
-  } else {
-    btn.classList.remove('on');
-    if(window.speechSynthesis) window.speechSynthesis.cancel();
-    toast('TTS off');
-  }
-}
-
+/* Text-to-Speech (per-message "Listen" button only — the toolbar toggle was removed) */
 function focoSpeak(text){
   if(!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
@@ -3720,10 +4128,12 @@ function focoSidebarClose(){
 function focoHistoryLoad(){ focoSidebarOpen(); }
 function focoDelSession(i, e){
   e.stopPropagation();
+  if(!confirm('Delete this chat? This cannot be undone.')) return;
   FOCO_SESSIONS.splice(i, 1);
   focoSaveSessions();
   var list = document.getElementById('foco-sb-list');
   if(list) focoRenderSidebarList(list);
+  toast('Chat deleted');
 }
 function focoLoadSession(sess){
   FOCO_HIST = sess.msgs || [];
@@ -4053,7 +4463,40 @@ function sfocoSaveToHistory(){
 }
 
 /* Voice */
+var SFOCO_NATIVE_LISTENING = false;
+async function sfocoVoiceNative(){
+  var SRP = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SpeechRecognition;
+  var micBtn = document.getElementById('sfoco-mic-btn');
+  if(!SRP){ toast('Voice input needs a fresh app build to work.'); return; }
+  if(SFOCO_NATIVE_LISTENING){
+    try{ await SRP.stop(); }catch(e){}
+    SFOCO_NATIVE_LISTENING = false;
+    if(micBtn) micBtn.classList.remove('rec');
+    return;
+  }
+  var ok = await ensureNativeVoicePermission();
+  if(!ok){ toast('Microphone permission is needed for voice input.'); return; }
+  SFOCO_NATIVE_LISTENING = true;
+  if(micBtn) micBtn.classList.add('rec');
+  try{
+    var result = await SRP.start({ language:'en-US', maxResults:1, prompt:'Speak now', partialResults:false, popup:false });
+    var tx = result && result.matches && result.matches[0];
+    if(tx){
+      var inp = document.getElementById('sfoco-inp');
+      inp.value = (inp.value + ' ' + tx).trim();
+      sfocoGrow(inp);
+    }
+  }catch(e){
+    toast('Voice input error. Try again.');
+  }finally{
+    SFOCO_NATIVE_LISTENING = false;
+    if(micBtn) micBtn.classList.remove('rec');
+  }
+}
+
 function sfocoVoice(){
+  if(!D.voiceInput){ toast('Voice input is off. Enable it in Settings.'); return; }
+  if(isNativeApp()){ sfocoVoiceNative(); return; }
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if(!SR){ toast('Voice not supported in this browser.'); return; }
   if(SFOCO_RECOG){
