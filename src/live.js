@@ -4406,6 +4406,13 @@ function sfocoRmTyping(id){
 
 /* Sfoco file attachment */
 function sfocoPickFile(){ document.getElementById('sfoco-file-in').click(); }
+function sfocoToolsToggle(){
+  var bar = document.getElementById('sfoco-tools-bar');
+  var btn = document.getElementById('sfoco-plus-btn');
+  if(!bar) return;
+  var open = bar.classList.toggle('open');
+  if(btn) btn.classList.toggle('on', open);
+}
 
 function sfocoGotFiles(files){
   Array.from(files).forEach(function(file){
