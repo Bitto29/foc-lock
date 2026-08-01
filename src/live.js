@@ -1186,29 +1186,41 @@ async function minimizeSess(){
   if(CUR.subj)document.getElementById('pip-subj').textContent=CUR.subj;
   updPipDisp();
   syncWakeLock();
+  armNativeAutoPip(true);
 }
 
-/* Native Android PiP — only fires when the app is actually being left
-   (home button / app switch / screen off) while a session is minimized,
-   via our own tiny native plugin (PipPlugin). Real system PiP always
-   captures the *entire* screen scaled down — it can't isolate one floating
-   div — so the instant we're about to leave, swap the visible page for one
-   clean full-screen timer view so that's what gets captured. */
-async function enterNativePipIfLeaving(){
-  if(!CUR || !SESS_MIN || !isNativeApp() || !window.Capacitor.Plugins.PipPlugin) return;
+/* Arms/disarms native auto-PiP for whenever the user actually leaves the
+   app (home button / app switch) — the real trigger runs natively from
+   MainActivity.onUserLeaveHint(), not from here (see PipPlugin.java for
+   why: it has to be synchronous with that exact callback to work
+   reliably, an async JS round-trip after backgrounding starts is too
+   late and gets silently ignored by Android). This just tells the native
+   side "yes/no, a session is currently minimized." */
+async function armNativeAutoPip(on){
+  if(!isNativeApp() || !window.Capacitor.Plugins.PipPlugin) return;
   try{
     var sup = await window.Capacitor.Plugins.PipPlugin.isPipSupported();
     if(!sup || !sup.supported) return;
-    ensureNativePipView();
-    var npipSubj=document.getElementById('npip-subj');
-    if(npipSubj) npipSubj.textContent=CUR.subj||'Session';
-    document.body.classList.add('native-pip-active');
-    updPipDisp();
-    var floatPip=document.getElementById('sess-pip');
-    if(floatPip) floatPip.classList.remove('show'); // system PiP takes over now
-    await window.Capacitor.Plugins.PipPlugin.enterPip();
-    syncWakeLock();
-  }catch(e){ document.body.classList.remove('native-pip-active'); }
+    await window.Capacitor.Plugins.PipPlugin.setAutoEnterEnabled({enabled:!!on});
+  }catch(e){}
+}
+
+/* Runs when appStateChange reports the app going inactive. By this point
+   the actual mode-switch has already been triggered natively (or is about
+   to complete) — this just swaps the visible page to a clean full-screen
+   timer view so that's what the shrunk PiP window shows, instead of the
+   full app UI. A one-frame lag here is fine; only the actual
+   enterPictureInPictureMode() call needed to be instant. */
+function showNativePipView(){
+  if(!CUR || !SESS_MIN) return;
+  ensureNativePipView();
+  var npipSubj=document.getElementById('npip-subj');
+  if(npipSubj) npipSubj.textContent=CUR.subj||'Session';
+  document.body.classList.add('native-pip-active');
+  updPipDisp();
+  var floatPip=document.getElementById('sess-pip');
+  if(floatPip) floatPip.classList.remove('show');
+  syncWakeLock();
 }
 function setupNativeLifecycleListeners(){
   if(!isNativeApp()) return;
@@ -1217,7 +1229,7 @@ function setupNativeLifecycleListeners(){
     if(!AppPlugin) return;
     AppPlugin.addListener('appStateChange', function(state){
       if(!state.isActive){
-        enterNativePipIfLeaving();
+        showNativePipView();
       } else {
         if(document.body.classList.contains('native-pip-active')){
           /* Back in the app — Android auto-exits system PiP on its own when
@@ -1248,6 +1260,7 @@ function maximizeSess(){
   document.getElementById('sess-pip').classList.remove('show');
   if(CUR){ document.getElementById('sess').classList.add('active'); updTDisp(); }
   syncWakeLock();
+  armNativeAutoPip(false);
 }
 
 function updPipDisp(){
@@ -1334,6 +1347,7 @@ function endSess(done){
   cancelNativeSessionReminders();
   relWL();stopSM();
   disableSessionDnd();
+  armNativeAutoPip(false);
   try{ if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen(); }catch(e){}
   stopPauseCountdown();
   CUR.el=getSessionElapsed();
