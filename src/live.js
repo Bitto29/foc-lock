@@ -1104,26 +1104,32 @@ function ensureNativePipView(){
     'body.native-pip-active{background:#0b0f19 !important;overflow:hidden !important;}'+
     '#native-pip-view{display:none;position:fixed;inset:0;z-index:2147483647;'+
       'background:#0b0f19;flex-direction:column;align-items:center;justify-content:center;'+
-      'gap:6px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;'+
+      'gap:7px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;'+
       'color:#f1f5f9;text-align:center;padding:16px;box-sizing:border-box;'+
       '-webkit-font-smoothing:antialiased;}'+
     'body.native-pip-active #native-pip-view{display:flex;}'+
-    '#npip-subj{font-size:14px;font-weight:800;color:#3d8fe0;letter-spacing:.3px;'+
+    '#npip-dot{width:6px;height:6px;border-radius:50%;background:#3d8fe0;'+
+      'box-shadow:0 0 8px rgba(61,143,224,.7);margin-bottom:2px;}'+
+    '#npip-subj{font-size:13px;font-weight:800;color:#3d8fe0;letter-spacing:.3px;'+
       'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:92%;}'+
-    '#npip-time{font-size:min(22vw,108px);font-weight:900;letter-spacing:-2px;'+
+    '#npip-time{font-size:min(20vw,96px);font-weight:900;letter-spacing:-2px;'+
       'font-variant-numeric:tabular-nums;line-height:1;color:#f8fafc;}'+
-    '#npip-label{font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;'+
+    '#npip-label{font-size:10.5px;color:#94a3b8;font-weight:600;text-transform:uppercase;'+
       'letter-spacing:.8px;}'+
-    '#npip-status{font-size:12px;color:#94a3b8;font-weight:600;}';
+    '#npip-status{font-size:11px;color:#94a3b8;font-weight:600;'+
+      'display:flex;align-items:center;gap:5px;margin-top:2px;}'+
+    '#npip-status::before{content:"";width:6px;height:6px;border-radius:50%;'+
+      'background:#22c55e;}';
   document.head.appendChild(style);
 
   var view=document.createElement('div');
   view.id='native-pip-view';
   view.innerHTML=
+    '<div id="npip-dot"></div>'+
     '<div id="npip-subj">Session</div>'+
     '<div id="npip-time">00:00</div>'+
     '<div id="npip-label">remaining</div>'+
-    '<div id="npip-status">\u25cf In Progress</div>';
+    '<div id="npip-status">In Progress</div>';
   document.body.appendChild(view);
 }
 
@@ -1195,22 +1201,28 @@ async function minimizeSess(){
    why: it has to be synchronous with that exact callback to work
    reliably, an async JS round-trip after backgrounding starts is too
    late and gets silently ignored by Android). This just tells the native
-   side "yes/no, a session is currently minimized." */
+   side "yes/no, a session is currently minimized."
+   IMPORTANT: this must always actually call setAutoEnterEnabled — an
+   earlier version bailed out early on an isPipSupported() check, which
+   meant disarm calls could silently no-op and leave the native flag stuck
+   "on" from a previous session, causing PiP to fire later even with no
+   session running. isPipSupported() isn't needed here at all: whether PiP
+   is actually possible only matters at the moment of entering, which the
+   native side already checks safely on its own. */
 async function armNativeAutoPip(on){
   if(!isNativeApp() || !window.Capacitor.Plugins.PipPlugin) return;
   try{
-    var sup = await window.Capacitor.Plugins.PipPlugin.isPipSupported();
-    if(!sup || !sup.supported) return;
     await window.Capacitor.Plugins.PipPlugin.setAutoEnterEnabled({enabled:!!on});
   }catch(e){}
 }
 
-/* Runs when appStateChange reports the app going inactive. By this point
-   the actual mode-switch has already been triggered natively (or is about
-   to complete) — this just swaps the visible page to a clean full-screen
-   timer view so that's what the shrunk PiP window shows, instead of the
-   full app UI. A one-frame lag here is fine; only the actual
-   enterPictureInPictureMode() call needed to be instant. */
+/* Swaps the visible page to a clean full-screen timer view so THAT is what
+   gets captured into the shrunk PiP window, instead of the full app UI.
+   Triggered by PipPlugin's own 'showPipView' native event (see
+   PipPlugin.maybeAutoEnterPip()), fired by the same native call, right
+   before enterPictureInPictureMode() — not by the separate, slower
+   appStateChange event, which arrived too late for Android to have
+   captured anything but the full app. */
 function showNativePipView(){
   if(!CUR || !SESS_MIN) return;
   ensureNativePipView();
@@ -1225,26 +1237,28 @@ function showNativePipView(){
 function setupNativeLifecycleListeners(){
   if(!isNativeApp()) return;
   try{
+    var PipP = window.Capacitor.Plugins.PipPlugin;
+    if(PipP && PipP.addListener) PipP.addListener('showPipView', function(){ showNativePipView(); });
+  }catch(e){}
+  try{
     var AppPlugin = window.Capacitor.Plugins.App;
     if(!AppPlugin) return;
     AppPlugin.addListener('appStateChange', function(state){
-      if(!state.isActive){
-        showNativePipView();
-      } else {
-        if(document.body.classList.contains('native-pip-active')){
-          /* Back in the app — Android auto-exits system PiP on its own when
-             you tap back in, so just reflect that in our UI. If a session is
-             still minimized, drop back to the in-app floating mini player
-             rather than the full session view. */
-          document.body.classList.remove('native-pip-active');
-          if(CUR && SESS_MIN){
-            var floatPip=document.getElementById('sess-pip');
-            if(floatPip) floatPip.classList.add('show');
-            if(CUR.subj)document.getElementById('pip-subj').textContent=CUR.subj;
-            updPipDisp();
-          }
-          syncWakeLock();
+      if(state.isActive && document.body.classList.contains('native-pip-active')){
+        /* Back in the app — Android auto-exits system PiP on its own when
+           you tap back in, so just reflect that in our UI. If a session is
+           still minimized, drop back to the in-app floating mini player
+           rather than the full session view. */
+        document.body.classList.remove('native-pip-active');
+        if(CUR && SESS_MIN){
+          var floatPip=document.getElementById('sess-pip');
+          if(floatPip) floatPip.classList.add('show');
+          if(CUR.subj)document.getElementById('pip-subj').textContent=CUR.subj;
+          updPipDisp();
         }
+        syncWakeLock();
+      }
+      if(state.isActive){
         // Covers returning from the system "Do Not Disturb access" settings
         // screen after toggleDndSession() sent the user there.
         if(D.dndSession && CUR && !DND_ACTIVE) enableSessionDnd();
@@ -1406,6 +1420,56 @@ async function togglePipKeepAwake(v){
   scheduleCloudSave();
   await syncWakeLock();
   toast(D.pipKeepAwake ? 'Screen will stay awake while the mini player is up.' : 'Screen can sleep during the mini player.');
+}
+
+// ===== REMINDER RELIABILITY (exact alarms + battery exemption) =====
+/* Fixes reminders/check-ins arriving late (or not at all) once the app is
+   fully closed. Since Android 12, apps need the "Alarms & reminders"
+   permission to fire scheduled notifications at their exact time when not
+   running — without it, Android silently downgrades them to inexact and
+   batches delivery into its next Doze maintenance window, which shows up
+   as "comes late." Battery-optimization exemption is the same idea:
+   without it, the OS can defer wakeups for the app indefinitely. */
+async function checkReminderReliability(){
+  if(!isNativeApp()) return null;
+  try{
+    var RP = window.Capacitor.Plugins.ReliabilityPlugin;
+    if(!RP) return null;
+    return await RP.checkStatus();
+  }catch(e){ return null; }
+}
+async function renderReliabilityStatus(){
+  var el = document.getElementById('reliability-status');
+  if(!el) return;
+  if(!isNativeApp()){ el.textContent=''; return; }
+  var status = await checkReminderReliability();
+  if(!status){ el.textContent=''; return; }
+  if(status.exactAlarmsGranted && status.batteryOptimizationExempt){
+    el.textContent = '✓ Fully enabled — reminders will fire on time even when closed.';
+    el.style.color = 'var(--success)';
+  } else {
+    el.textContent = '⚠ Not fully enabled — reminders may arrive late when the app is closed.';
+    el.style.color = 'var(--warning, #e0a83d)';
+  }
+}
+async function fixReminderReliability(){
+  if(!isNativeApp()){ toast('This only works in the installed app, not the browser.'); return; }
+  try{
+    var RP = window.Capacitor.Plugins.ReliabilityPlugin;
+    if(!RP){ toast('Needs a fresh app build to work.'); return; }
+    var status = await checkReminderReliability();
+    if(status && !status.exactAlarmsGranted){
+      await RP.requestExactAlarmPermission();
+      toast('Turn on "Allow" for Foc Lock on the screen that just opened.');
+      return; // one settings screen at a time — re-tap the button for the next one
+    }
+    if(status && !status.batteryOptimizationExempt){
+      await RP.requestBatteryExemption();
+      toast('Allow Foc Lock to skip battery optimization on the screen that just opened.');
+      return;
+    }
+    toast('Already fully enabled!');
+  }catch(e){ toast('Could not open settings.'); }
 }
 
 // ===== SESSION DO NOT DISTURB =====
@@ -1790,6 +1854,7 @@ function renderSettingsToggles(){
   if(pel) pel.checked = !!D.pipKeepAwake;
   var del = document.getElementById('dnd-session-toggle');
   if(del) del.checked = !!D.dndSession;
+  renderReliabilityStatus();
 }
 
 // ===== AUDIO =====
