@@ -862,11 +862,8 @@ window.addEventListener('popstate',function(e){
     return;
   }
   if(s.type==='tab'){
-    if(s.sub&&s.sub==='more-main'){
-      goScr('more',null,true); gSub('more-main',true);
-    } else {
-      goScr(s.tab,null,true);
-    }
+    goScr(s.tab,null,true);
+    if(s.tab==='more') gSub('more-main',true);
     return;
   }
   goScr('home',null,true);
