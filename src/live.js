@@ -1103,33 +1103,38 @@ function ensureNativePipView(){
     'body.native-pip-active > *:not(#native-pip-view){display:none !important;}'+
     'body.native-pip-active{background:#0b0f19 !important;overflow:hidden !important;}'+
     '#native-pip-view{display:none;position:fixed;inset:0;z-index:2147483647;'+
-      'background:#0b0f19;flex-direction:column;align-items:center;justify-content:center;'+
-      'gap:7px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;'+
-      'color:#f1f5f9;text-align:center;padding:16px;box-sizing:border-box;'+
+      'background:#0b0f19;align-items:center;justify-content:center;'+
+      'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;'+
+      'color:#f1f5f9;padding:14px;box-sizing:border-box;'+
       '-webkit-font-smoothing:antialiased;}'+
     'body.native-pip-active #native-pip-view{display:flex;}'+
-    '#npip-dot{width:6px;height:6px;border-radius:50%;background:#3d8fe0;'+
-      'box-shadow:0 0 8px rgba(61,143,224,.7);margin-bottom:2px;}'+
-    '#npip-subj{font-size:13px;font-weight:800;color:#3d8fe0;letter-spacing:.3px;'+
-      'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:92%;}'+
-    '#npip-time{font-size:min(20vw,96px);font-weight:900;letter-spacing:-2px;'+
-      'font-variant-numeric:tabular-nums;line-height:1;color:#f8fafc;}'+
-    '#npip-label{font-size:10.5px;color:#94a3b8;font-weight:600;text-transform:uppercase;'+
-      'letter-spacing:.8px;}'+
+    '#npip-card{display:flex;align-items:center;gap:16px;width:100%;height:100%;'+
+      'background:#151b28;border:1.5px solid #2a3446;border-radius:16px;'+
+      'padding:14px 20px;box-sizing:border-box;box-shadow:0 8px 30px rgba(0,0,0,.4);}'+
+    '#npip-time{font-size:min(13vw,64px);font-weight:900;letter-spacing:-2px;'+
+      'font-variant-numeric:tabular-nums;line-height:1;color:#f8fafc;flex-shrink:0;}'+
+    '#npip-side{display:flex;flex-direction:column;gap:5px;min-width:0;flex:1;}'+
+    '#npip-subj{font-size:13px;font-weight:800;color:#3d8fe0;letter-spacing:.2px;'+
+      'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'+
+    '#npip-label{font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;'+
+      'letter-spacing:.7px;}'+
     '#npip-status{font-size:11px;color:#94a3b8;font-weight:600;'+
-      'display:flex;align-items:center;gap:5px;margin-top:2px;}'+
+      'display:flex;align-items:center;gap:5px;}'+
     '#npip-status::before{content:"";width:6px;height:6px;border-radius:50%;'+
-      'background:#22c55e;}';
+      'background:#22c55e;flex-shrink:0;}';
   document.head.appendChild(style);
 
   var view=document.createElement('div');
   view.id='native-pip-view';
   view.innerHTML=
-    '<div id="npip-dot"></div>'+
-    '<div id="npip-subj">Session</div>'+
-    '<div id="npip-time">00:00</div>'+
-    '<div id="npip-label">remaining</div>'+
-    '<div id="npip-status">In Progress</div>';
+    '<div id="npip-card">'+
+      '<div id="npip-time">00:00</div>'+
+      '<div id="npip-side">'+
+        '<div id="npip-subj">Session</div>'+
+        '<div id="npip-label">remaining</div>'+
+        '<div id="npip-status">In Progress</div>'+
+      '</div>'+
+    '</div>';
   document.body.appendChild(view);
 }
 
@@ -1753,38 +1758,16 @@ async function ensureReminderChannel(){
   }catch(e){}
 }
 
+/* Reverted to the simple version that reliably worked: checkRems() (JS
+   polling every 60s while the app is open) is the sole reminder mechanism
+   again. The native OS-alarm scheduling below is disabled — after being
+   layered together with DND/Reliability changes across several builds it
+   started failing to deliver reminders at all, and untangling exactly
+   which interaction broke it isn't worth the risk versus just going back
+   to the version that was known to work. Re-enable by restoring the body
+   below if background delivery is wanted again later. */
 async function scheduleAllNativeDailyReminders(){
-  if(!isNativeApp()) return;
-  try{
-    var LN = window.Capacitor.Plugins.LocalNotifications;
-
-    // Always clear the whole block first, then re-add whatever is currently on.
-    // Simpler and safer than trying to diff old vs new reminder lists.
-    var cancelIds = [];
-    for(var i = 0; i < NATIVE_DAILY_REMINDER_MAX; i++) cancelIds.push({id: NATIVE_DAILY_REMINDER_BASE_ID + i});
-    try{ await LN.cancel({ notifications: cancelIds }); }catch(e){}
-
-    var ok = await ensureNativeNotifPermission();
-    if(!ok) return;
-    await ensureReminderChannel();
-
-    var notifications = [];
-    (D.rems||[]).forEach(function(r, i){
-      if(!r.on || !r.t) return;
-      var parts = r.t.split(':');
-      var hh = parseInt(parts[0], 10), mm = parseInt(parts[1], 10);
-      if(isNaN(hh) || isNaN(mm)) return;
-      notifications.push({
-        id: NATIVE_DAILY_REMINDER_BASE_ID + i,
-        title: 'Foc Lock – Study Reminder',
-        body: r.l || 'Time to study!',
-        channelId: 'study-reminders',
-        schedule: { on: { hour: hh, minute: mm }, allowWhileIdle: true },
-        extra: { type: 'daily-reminder', remId: r.id }
-      });
-    });
-    if(notifications.length) await LN.schedule({ notifications: notifications });
-  }catch(e){}
+  return;
 }
 
 function ensureBrowserNotifications(){
@@ -2136,7 +2119,7 @@ function getChartData(){
       data.push(m);
     }
   }
-  return{labels:labels,datasets:[{data:data,backgroundColor:PERIOD==='week'?'rgba(61,143,224,.6)':'rgba(61,143,224,.55)',hoverBackgroundColor: PERIOD === 'week' ? 'rgba(110, 180, 245, 0.85)' : 'rgba(110, 180, 245, 0.8)',borderRadius:6,borderSkipped:false}]};
+  return{labels:labels,datasets:[{data:data,backgroundColor:PERIOD==='week'?'rgba(61,143,224,.6)':'rgba(61,143,224,.55)',hoverBackgroundColor:PERIOD==='week'?'rgba(155,125,255,.85)':'rgba(61,143,224,.85)',borderRadius:6,borderSkipped:false}]};
 }
 /* ── DAILY ACTIVITY CHART ── */
 var DCHART=null;
