@@ -47,7 +47,9 @@ jobs:
           cat > "$JAVADIR/PipPlugin.java" << 'EOF'
           package com.bitto.foclock;
 
+          import android.annotation.SuppressLint;
           import android.app.PictureInPictureParams;
+          import android.content.pm.PackageManager;
           import android.os.Build;
           import android.util.Rational;
           import com.getcapacitor.JSObject;
@@ -59,28 +61,51 @@ jobs:
           @CapacitorPlugin(name = "PipPlugin")
           public class PipPlugin extends Plugin {
 
-              @PluginMethod
-              public void enterPip(PluginCall call) {
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                      PictureInPictureParams params = new PictureInPictureParams.Builder()
-                          .setAspectRatio(new Rational(4, 3))
-                          .build();
-                      try {
-                          getActivity().enterPictureInPictureMode(params);
-                          call.resolve();
-                      } catch (Exception e) {
-                          call.reject("Could not enter PiP: " + e.getMessage());
-                      }
-                  } else {
-                      call.reject("PiP not supported on this Android version");
-                  }
-              }
+              private volatile boolean autoEnterEnabled = false;
 
               @PluginMethod
               public void isPipSupported(PluginCall call) {
                   JSObject ret = new JSObject();
-                  ret.put("supported", Build.VERSION.SDK_INT >= Build.VERSION_CODES.O);
+                  boolean supported = false;
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && getActivity() != null) {
+                      PackageManager pm = getActivity().getPackageManager();
+                      supported = pm != null && pm.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE);
+                  }
+                  ret.put("supported", supported);
                   call.resolve(ret);
+              }
+
+              @PluginMethod
+              public void setAutoEnterEnabled(PluginCall call) {
+                  Boolean enabled = call.getBoolean("enabled", false);
+                  autoEnterEnabled = enabled != null && enabled;
+                  call.resolve();
+              }
+
+              @SuppressLint("NewApi")
+              @PluginMethod
+              public void enterPip(PluginCall call) {
+                  boolean ok = doEnterPip();
+                  if (ok) call.resolve();
+                  else call.reject("Could not enter Picture-in-Picture mode.");
+              }
+
+              @SuppressLint("NewApi")
+              public void maybeAutoEnterPip() {
+                  if (autoEnterEnabled) doEnterPip();
+              }
+
+              @SuppressLint("NewApi")
+              private boolean doEnterPip() {
+                  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || getActivity() == null) return false;
+                  try {
+                      PictureInPictureParams params = new PictureInPictureParams.Builder()
+                              .setAspectRatio(new Rational(3, 4))
+                              .build();
+                      return getActivity().enterPictureInPictureMode(params);
+                  } catch (Exception e) {
+                      return false;
+                  }
               }
           }
           EOF
@@ -187,9 +212,10 @@ jobs:
           cat > "$JAVADIR/MainActivity.java" << 'EOF'
           package com.bitto.foclock;
 
-          import android.content.res.Configuration;
           import android.os.Bundle;
           import com.getcapacitor.BridgeActivity;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginHandle;
 
           public class MainActivity extends BridgeActivity {
               @Override
@@ -200,11 +226,15 @@ jobs:
               }
 
               @Override
-              public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
-                  super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
-                  if (getBridge() != null) {
-                      String js = "window.dispatchEvent(new CustomEvent('pipModeChanged', {detail:{active:" + isInPictureInPictureMode + "}}));";
-                      getBridge().eval(js, null);
+              public void onUserLeaveHint() {
+                  super.onUserLeaveHint();
+                  if (getBridge() == null) return;
+                  PluginHandle handle = getBridge().getPluginHandle("PipPlugin");
+                  if (handle != null) {
+                      Plugin plugin = handle.getInstance();
+                      if (plugin instanceof PipPlugin) {
+                          ((PipPlugin) plugin).maybeAutoEnterPip();
+                      }
                   }
               }
           }
