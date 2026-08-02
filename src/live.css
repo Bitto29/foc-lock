@@ -882,7 +882,7 @@ body{background:var(--bg);}
     font-size:clamp(52px,16vw,68px);letter-spacing:-2.5px;
   }
   #sess.sess-immersive .t-inner-elapsed{font-size:13px;}
-  #sess.sess-immersive .ssubj{font-size:18px;}
+  #sess.sess-immersive .ssubj{font-size:15px;}
   #sess.sess-immersive .sess-xp-live{font-size:14px;}
   #sess.sess-immersive .sess-status-txt{font-size:12.5px;}
   #sess.sess-immersive .sctrl{margin-top:22px;gap:10px;padding-bottom:env(safe-area-inset-bottom,0px);}
