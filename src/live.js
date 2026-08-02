@@ -1103,23 +1103,19 @@ function ensureNativePipView(){
     'body.native-pip-active > *:not(#native-pip-view){display:none !important;}'+
     'body.native-pip-active{background:#0b0f19 !important;overflow:hidden !important;}'+
     '#native-pip-view{display:none;position:fixed;inset:0;z-index:2147483647;'+
-      'background:#0b0f19;align-items:center;justify-content:center;'+
-      'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;'+
-      'color:#f1f5f9;padding:14px;box-sizing:border-box;'+
+      'background:#0b0f19;flex-direction:column;align-items:center;justify-content:center;'+
+      'gap:5px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;'+
+      'color:#f1f5f9;text-align:center;padding:16px;box-sizing:border-box;'+
       '-webkit-font-smoothing:antialiased;}'+
     'body.native-pip-active #native-pip-view{display:flex;}'+
-    '#npip-card{display:flex;align-items:center;gap:16px;width:100%;height:100%;'+
-      'background:#151b28;border:1.5px solid #2a3446;border-radius:16px;'+
-      'padding:14px 20px;box-sizing:border-box;box-shadow:0 8px 30px rgba(0,0,0,.4);}'+
-    '#npip-time{font-size:min(13vw,64px);font-weight:900;letter-spacing:-2px;'+
-      'font-variant-numeric:tabular-nums;line-height:1;color:#f8fafc;flex-shrink:0;}'+
-    '#npip-side{display:flex;flex-direction:column;gap:5px;min-width:0;flex:1;}'+
-    '#npip-subj{font-size:13px;font-weight:800;color:#3d8fe0;letter-spacing:.2px;'+
-      'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'+
-    '#npip-label{font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;'+
+    '#npip-subj{font-size:13px;font-weight:800;color:#3d8fe0;letter-spacing:.3px;'+
+      'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:92%;}'+
+    '#npip-time{font-size:38px;font-weight:900;letter-spacing:-1.8px;'+
+      'font-variant-numeric:tabular-nums;line-height:1.05;color:#f8fafc;}'+
+    '#npip-label{font-size:10.5px;color:#94a3b8;font-weight:600;text-transform:uppercase;'+
       'letter-spacing:.7px;}'+
     '#npip-status{font-size:11px;color:#94a3b8;font-weight:600;'+
-      'display:flex;align-items:center;gap:5px;}'+
+      'display:flex;align-items:center;gap:5px;margin-top:2px;}'+
     '#npip-status::before{content:"";width:6px;height:6px;border-radius:50%;'+
       'background:#22c55e;flex-shrink:0;}';
   document.head.appendChild(style);
@@ -1127,14 +1123,10 @@ function ensureNativePipView(){
   var view=document.createElement('div');
   view.id='native-pip-view';
   view.innerHTML=
-    '<div id="npip-card">'+
-      '<div id="npip-time">00:00</div>'+
-      '<div id="npip-side">'+
-        '<div id="npip-subj">Session</div>'+
-        '<div id="npip-label">remaining</div>'+
-        '<div id="npip-status">In Progress</div>'+
-      '</div>'+
-    '</div>';
+    '<div id="npip-subj">Session</div>'+
+    '<div id="npip-time">00:00</div>'+
+    '<div id="npip-label">remaining</div>'+
+    '<div id="npip-status">In Progress</div>';
   document.body.appendChild(view);
 }
 
