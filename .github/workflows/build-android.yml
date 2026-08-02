@@ -114,7 +114,7 @@ jobs:
                   if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || getActivity() == null) return false;
                   try {
                       PictureInPictureParams params = new PictureInPictureParams.Builder()
-                              .setAspectRatio(new Rational(16, 9))
+                              .setAspectRatio(new Rational(3, 4))
                               .build();
                       return getActivity().enterPictureInPictureMode(params);
                   } catch (Exception e) {
@@ -265,6 +265,10 @@ jobs:
       - name: Enable PiP in AndroidManifest
         run: |
           sed -i 's/android:name=".MainActivity"/android:name=".MainActivity" android:supportsPictureInPicture="true"/' android/app/src/main/AndroidManifest.xml
+
+      - name: Declare Do Not Disturb access permission
+        run: |
+          sed -i '/<manifest/a\    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />' android/app/src/main/AndroidManifest.xml
 
       - name: Sync Capacitor
         run: npx cap sync
