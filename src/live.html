@@ -1131,15 +1131,11 @@
 </div>
 
 <!-- SESSION PiP (minimize mode) -->
-<div id="sess-pip">
-  <div class="pip-drag-bar" id="pip-drag-bar"></div>
-  <div class="pip-hdr">
-    <div class="pip-subj" id="pip-subj">Session</div>
-    <button class="pip-expand" onclick="maximizeSess()">⛶ Expand</button>
-  </div>
+<div id="sess-pip" onclick="pipCardTap(event)">
+  <div class="pip-subj" id="pip-subj">Session</div>
   <div class="pip-time" id="pip-time">00:00</div>
   <div class="pip-label" id="pip-label">remaining</div>
-  <div class="pip-status" id="pip-status">● In Progress</div>
+  <div class="pip-status" id="pip-status">In Progress</div>
 </div>
 
 <!-- RETURN BANNER -->
