@@ -1290,7 +1290,7 @@ function updPipDisp(){
   else{ ds=elapsed; lbl='elapsed'; }
   var m=Math.floor(ds/60),s=ds%60;
   var timeStr=pad(m)+':'+pad(s);
-  var statusStr=CUR.paused?'\u23f8 Paused':'\u25cf In Progress';
+  var statusStr=CUR.paused?'Paused':'In Progress';
   /* Update the dedicated full-screen native PiP view, if active */
   if(document.body.classList.contains('native-pip-active')){
     var nt=document.getElementById('npip-time');
@@ -1320,24 +1320,29 @@ function updPipDisp(){
   if(ps2)ps2.textContent=statusStr;
 }
 
-/* Draggable fallback pip */
+/* Draggable fallback pip — whole card is the handle now (no visible drag
+   bar in the redesigned card). A tap (no meaningful movement) expands the
+   session; a real drag moves the card instead. */
+var PIP_DID_DRAG = false;
 (function(){
   function initPipDrag(){
     var pip=document.getElementById('sess-pip');
-    var handle=document.getElementById('pip-drag-bar');
-    if(!pip||!handle)return;
-    var ox=0,oy=0,dragging=false;
+    if(!pip)return;
+    var ox=0,oy=0,dragging=false,startX=0,startY=0;
     function onDown(e){
-      dragging=true; pip.classList.add('pip-dragging');
+      dragging=true; PIP_DID_DRAG=false; pip.classList.add('pip-dragging');
       var cx=e.touches?e.touches[0].clientX:e.clientX;
       var cy=e.touches?e.touches[0].clientY:e.clientY;
+      startX=cx; startY=cy;
       var r=pip.getBoundingClientRect(); ox=cx-r.left; oy=cy-r.top;
-      e.preventDefault();
     }
     function onMove(e){
       if(!dragging)return;
       var cx=e.touches?e.touches[0].clientX:e.clientX;
       var cy=e.touches?e.touches[0].clientY:e.clientY;
+      if(!PIP_DID_DRAG && (Math.abs(cx-startX)>6 || Math.abs(cy-startY)>6)) PIP_DID_DRAG=true;
+      if(!PIP_DID_DRAG) return;
+      e.preventDefault();
       var x=cx-ox,y=cy-oy;
       var mw=window.innerWidth-pip.offsetWidth-8;
       var mh=window.innerHeight-pip.offsetHeight-8;
@@ -1346,8 +1351,8 @@ function updPipDisp(){
       pip.style.left=x+'px'; pip.style.top=y+'px';
     }
     function onUp(){ if(!dragging)return; dragging=false; pip.classList.remove('pip-dragging'); }
-    handle.addEventListener('mousedown',onDown);
-    handle.addEventListener('touchstart',onDown,{passive:false});
+    pip.addEventListener('mousedown',onDown);
+    pip.addEventListener('touchstart',onDown,{passive:true});
     document.addEventListener('mousemove',onMove);
     document.addEventListener('touchmove',onMove,{passive:false});
     document.addEventListener('mouseup',onUp);
@@ -1355,6 +1360,10 @@ function updPipDisp(){
   }
   document.addEventListener('DOMContentLoaded',initPipDrag);
 })();
+function pipCardTap(e){
+  if(PIP_DID_DRAG){ PIP_DID_DRAG=false; return; } // just finished dragging, not a tap
+  maximizeSess();
+}
 function fmtDur(mins){
   if(mins<60)return mins+'m';
   var h=Math.floor(mins/60),m=mins%60;
@@ -1479,6 +1488,13 @@ async function requestDndAccess(){
     if(DP && DP.requestDndAccess) await DP.requestDndAccess();
   }catch(e){}
 }
+async function openDndAppInfoFallback(){
+  if(!isNativeApp()) return;
+  try{
+    var DP = window.Capacitor.Plugins.DndPlugin;
+    if(DP && DP.openAppInfoSettings) await DP.openAppInfoSettings();
+  }catch(e){}
+}
 async function enableSessionDnd(){
   if(!D.dndSession || !isNativeApp() || !CUR) return;
   try{
@@ -1512,9 +1528,24 @@ async function toggleDndSession(v){
   if(ok){
     toast('Do Not Disturb will activate during sessions.');
     if(CUR) enableSessionDnd();
-  } else {
+    localStorage.removeItem('fl_dnd_attempted');
+    return;
+  }
+  // First attempt: try the standard system screen. If the user already
+  // tried that once and came back still not granted — some phones (Honor/
+  // MagicOS in particular) don't reliably list newly-installed apps there
+  // — automatically fall back to the app's own info page instead, which
+  // exists identically on every device and often has the same toggle
+  // reachable through it. The person never has to go looking for this
+  // themselves; the app just tries the next thing on its own.
+  var attempted = localStorage.getItem('fl_dnd_attempted')==='1';
+  if(!attempted){
+    localStorage.setItem('fl_dnd_attempted','1');
     toast('Grant "Do Not Disturb access" for Foc Lock on the screen that just opened, then come back.');
     requestDndAccess();
+  } else {
+    toast('Trying an alternate settings screen — look for "Do Not Disturb" or "Other permissions" for Foc Lock there.');
+    openDndAppInfoFallback();
   }
 }
 
@@ -1708,16 +1739,47 @@ async function ensureReminderChannel(){
   }catch(e){}
 }
 
-/* Reverted to the simple version that reliably worked: checkRems() (JS
-   polling every 60s while the app is open) is the sole reminder mechanism
-   again. The native OS-alarm scheduling below is disabled — after being
-   layered together with DND/Reliability changes across several builds it
-   started failing to deliver reminders at all, and untangling exactly
-   which interaction broke it isn't worth the risk versus just going back
-   to the version that was known to work. Re-enable by restoring the body
-   below if background delivery is wanted again later. */
+/* Schedules D.rems as recurring native OS alarms so they fire even with the
+   app fully closed — checkRems() (JS polling every 60s) only works while
+   the app is open, since Android suspends JS timers in the background.
+   Depends on: ensureReminderChannel() (bypassDnd + high importance),
+   ensureNativeNotifPermission() (POST_NOTIFICATIONS), and ideally the
+   "Alarms & reminders" + battery-exemption grants from the Reminder
+   Reliability card in Settings — without those, Android may still delay
+   delivery even though this schedules them correctly. */
 async function scheduleAllNativeDailyReminders(){
-  return;
+  if(!isNativeApp()) return;
+  try{
+    var LN = window.Capacitor.Plugins.LocalNotifications;
+    if(!LN) return;
+
+    // Always clear the whole block first, then re-add whatever is currently
+    // on — simpler and safer than trying to diff old vs new reminder lists.
+    var cancelIds = [];
+    for(var i = 0; i < NATIVE_DAILY_REMINDER_MAX; i++) cancelIds.push({id: NATIVE_DAILY_REMINDER_BASE_ID + i});
+    try{ await LN.cancel({ notifications: cancelIds }); }catch(e){}
+
+    var ok = await ensureNativeNotifPermission();
+    if(!ok) return;
+    await ensureReminderChannel();
+
+    var notifications = [];
+    (D.rems||[]).forEach(function(r, i){
+      if(!r.on || !r.t) return;
+      var parts = r.t.split(':');
+      var hh = parseInt(parts[0], 10), mm = parseInt(parts[1], 10);
+      if(isNaN(hh) || isNaN(mm)) return;
+      notifications.push({
+        id: NATIVE_DAILY_REMINDER_BASE_ID + i,
+        title: 'Foc Lock – Study Reminder',
+        body: r.l || 'Time to study!',
+        channelId: 'study-reminders',
+        schedule: { on: { hour: hh, minute: mm }, allowWhileIdle: true },
+        extra: { type: 'daily-reminder', remId: r.id }
+      });
+    });
+    if(notifications.length) await LN.schedule({ notifications: notifications });
+  }catch(e){}
 }
 
 function ensureBrowserNotifications(){
@@ -2068,7 +2130,7 @@ function getChartData(){
       data.push(m);
     }
   }
-  return{labels:labels,datasets:[{data:data,backgroundColor:PERIOD==='week'?'rgba(61,143,224,.6)':'rgba(61,143,224,.55)',hoverBackgroundColor:PERIOD==='week'?'rgba(155,125,255,.85)':'rgba(61,143,224,.85)',borderRadius:6,borderSkipped:false}]};
+  return{labels:labels,datasets:[{data:data,backgroundColor:PERIOD==='week'?'rgba(61,143,224,.6)':'rgba(61,143,224,.55)',hoverBackgroundColor: PERIOD === 'week' ? 'rgba(110, 180, 245, 0.85)' : 'rgba(110, 180, 245, 0.8)',borderRadius:6,borderSkipped:false}]};
 }
 /* ── DAILY ACTIVITY CHART ── */
 var DCHART=null;
@@ -2892,6 +2954,12 @@ function addManualSession(){
 function rmRem(i){ D.rems.splice(i,1); localStorage.setItem('fl_r',JSON.stringify(D.rems)); scheduleCloudSave(); scheduleAllNativeDailyReminders(); renderRems(); renderRemPreview(); }
 function tglRem(i,v){ D.rems[i].on=v; localStorage.setItem('fl_r',JSON.stringify(D.rems)); scheduleCloudSave(); scheduleAllNativeDailyReminders(); }
 function checkRems(){
+  // On native, scheduleAllNativeDailyReminders() already covers this exact
+  // minute via an OS alarm — firing here too would double it up whenever
+  // the app happens to be open right at the reminder time. Native alarms
+  // alone are the single source of truth there (same fix as session
+  // check-ins). This JS path is web-only now.
+  if(isNativeApp()) return;
   var n=new Date(); var cur=pad(n.getHours())+':'+pad(n.getMinutes());
   var stamp=today()+' '+cur;
   D.rems.forEach(function(r){
