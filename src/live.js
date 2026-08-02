@@ -1370,7 +1370,15 @@ function endSess(done){
   armNativeAutoPip(false);
   try{ if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen(); }catch(e){}
   stopPauseCountdown();
-  CUR.el=getSessionElapsed();
+  // Timed sessions must never log more than what was actually set. If the
+  // app was backgrounded/closed while the timer was running, the JS tick()
+  // loop suspends — so by the time anything notices the session should
+  // have ended (on reopen, via restoreSessionState()), real elapsed time
+  // may have drifted way past the target (e.g. 1 hour instead of the 30
+  // min that was set). Math.min() here caps it at the intended total for
+  // timed sessions, while leaving open/untimed sessions and early manual
+  // stops (elapsed < total) using the real elapsed time as before.
+  CUR.el = CUR.timed ? Math.min(getSessionElapsed(), CUR.total) : getSessionElapsed();
   var dur=CUR.el,xp=Math.floor(dur/60),subj=CUR.subj;
   var rec={id:uid(),subj:subj,subjs:CUR.subjs||[subj],subjsDetail:CUR.subjsDetail||[],dur:dur,d:today(),done:done,ts:Date.now(),xp:xp,open:!CUR.timed};
   D.sess.push(rec); D.sess.sort(function(a,b){return safeNum(a.ts,0)-safeNum(b.ts,0);});
@@ -1446,20 +1454,27 @@ async function togglePipKeepAwake(v){
    adjust this file to match — everything below fails silently/harmlessly
    if a method is missing, so nothing breaks in the meantime. */
 var DND_ACTIVE = false;
+var DND_CHANNELS_READY_PROMISE = null;
 
-/* Must run BEFORE anything else creates the "session-alerts" / "study-reminders"
-   channels (ensureSessionAlertsChannel / ensureReminderChannel below, and
-   LocalNotifications.createChannel() calls generally) — Android locks a
-   channel's bypassDnd flag in at first creation and ignores changes after
-   that, so this has to win the race. Safe to call every launch: if the
-   channel already exists, DndPlugin.ensureBypassChannels() just leaves it
-   alone (see the native plugin for why). */
+/* Must run before anything schedules a session-alerts/study-reminders
+   notification — everything that needs those channels now awaits this
+   same shared promise instead of separately calling
+   LocalNotifications.createChannel() (which doesn't support bypassDnd and,
+   if it ever won the race to create the channel first, would permanently
+   lock DND-bypass off for that install — Android only honors bypassDnd at
+   first creation). Safe to call every launch: if the channel already
+   exists, DndPlugin.ensureBypassChannels() just leaves it alone. */
 async function ensureDndBypassChannels(){
   if(!isNativeApp()) return;
-  try{
-    var DP = window.Capacitor.Plugins.DndPlugin;
-    if(DP && DP.ensureBypassChannels) await DP.ensureBypassChannels();
-  }catch(e){}
+  if(!DND_CHANNELS_READY_PROMISE){
+    DND_CHANNELS_READY_PROMISE = (async function(){
+      try{
+        var DP = window.Capacitor.Plugins.DndPlugin;
+        if(DP && DP.ensureBypassChannels) await DP.ensureBypassChannels();
+      }catch(e){}
+    })();
+  }
+  return DND_CHANNELS_READY_PROMISE;
 }
 
 async function hasDndAccess(){
@@ -1621,32 +1636,18 @@ async function ensureNativeNotifPermission(){
 
 var NATIVE_NOTIF_ID_COUNTER = 1000;
 
-/* Dedicated channel for session-related pushes (start/pause/resume/complete,
-   5-min check-ins, achievements). Android silently downgrades notifications
-   posted without a channelId to the low-importance default channel — no
-   heads-up popup, no vibration, easy to mistake for "phone is in DND". */
-var SESSION_CHANNEL_READY = false;
-async function ensureSessionAlertsChannel(){
-  if(!isNativeApp() || SESSION_CHANNEL_READY) return;
-  try{
-    var LN = window.Capacitor.Plugins.LocalNotifications;
-    await LN.createChannel({
-      id: 'session-alerts',
-      name: 'Session Alerts',
-      description: 'Session start/pause/check-in and completion alerts',
-      importance: 5,   // IMPORTANCE_HIGH: heads-up banner + sound + vibration
-      visibility: 1,
-      vibration: true,
-      lights: true
-    });
-    SESSION_CHANNEL_READY = true;
-  }catch(e){}
-}
-
+/* Session-alert notifications use the channel created natively by
+   ensureDndBypassChannels() (with setBypassDnd(true) baked in from first
+   creation — see DndPlugin.java). We deliberately do NOT also create this
+   channel via LocalNotifications.createChannel() here: that call doesn't
+   support bypassDnd, and if it ever won the race and created the channel
+   first, the bypass flag would be permanently locked out for that install
+   (Android only honors bypassDnd at first creation, never after). Routing
+   everything through the one native path removes that race entirely. */
 async function sendNativeNotif(t,b,o){
   if(!isNativeApp()) return false;
   try{
-    await ensureSessionAlertsChannel();
+    await ensureDndBypassChannels();
     var LN = window.Capacitor.Plugins.LocalNotifications;
     await LN.schedule({
       notifications:[{
@@ -1675,7 +1676,13 @@ var NATIVE_REMINDER_COUNT = 24; // covers the next 2 hours, every 5 min
 async function scheduleNativeSessionReminders(){
   if(!isNativeApp() || !CUR || !D.sessNotif) return;
   try{
-    await ensureSessionAlertsChannel();
+    // Was missing entirely before — without this, if the person had never
+    // granted notification permission, these got "scheduled" successfully
+    // from the app's point of view but Android silently dropped every one
+    // of them, which looked exactly like "sometimes doesn't come."
+    var ok = await ensureNativeNotifPermission();
+    if(!ok) return;
+    await ensureDndBypassChannels();
     var LN = window.Capacitor.Plugins.LocalNotifications;
     var notifications = [];
     var now = Date.now();
@@ -1715,30 +1722,13 @@ async function cancelNativeSessionReminders(){
 var NATIVE_DAILY_REMINDER_BASE_ID = 9000;
 var NATIVE_DAILY_REMINDER_MAX = 200; // generous headroom for however many reminders the user adds
 
-async function ensureReminderChannel(){
-  if(!isNativeApp()) return;
-  try{
-    var LN = window.Capacitor.Plugins.LocalNotifications;
-    await LN.createChannel({
-      id: 'study-reminders',
-      name: 'Study Reminders',
-      description: 'Daily study reminder alerts',
-      importance: 5,        // IMPORTANCE_HIGH: heads-up + sound + vibration
-      visibility: 1,
-      vibration: true,
-      lights: true
-    });
-  }catch(e){}
-}
-
 /* Schedules D.rems as recurring native OS alarms so they fire even with the
    app fully closed — checkRems() (JS polling every 60s) only works while
    the app is open, since Android suspends JS timers in the background.
-   Depends on: ensureReminderChannel() (bypassDnd + high importance),
-   ensureNativeNotifPermission() (POST_NOTIFICATIONS), and ideally the
-   "Alarms & reminders" + battery-exemption grants from the Reminder
-   Reliability card in Settings — without those, Android may still delay
-   delivery even though this schedules them correctly. */
+   Channel creation for "study-reminders" (with bypassDnd baked in) is
+   handled by ensureDndBypassChannels() — see the note on that function for
+   why it must never be created via LocalNotifications.createChannel()
+   directly. */
 async function scheduleAllNativeDailyReminders(){
   if(!isNativeApp()) return;
   try{
@@ -1753,7 +1743,7 @@ async function scheduleAllNativeDailyReminders(){
 
     var ok = await ensureNativeNotifPermission();
     if(!ok) return;
-    await ensureReminderChannel();
+    await ensureDndBypassChannels();
 
     var notifications = [];
     (D.rems||[]).forEach(function(r, i){
