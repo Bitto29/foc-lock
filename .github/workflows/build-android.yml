@@ -194,6 +194,26 @@ jobs:
               }
 
               @PluginMethod
+              public void openChannelSettings(PluginCall call) {
+                  String channelId = call.getString("channelId");
+                  if (channelId == null || channelId.isEmpty()) {
+                      call.reject("channelId is required");
+                      return;
+                  }
+                  try {
+                      Intent intent = new Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS);
+                      intent.putExtra(Settings.EXTRA_APP_PACKAGE, getContext().getPackageName());
+                      intent.putExtra(Settings.EXTRA_CHANNEL_ID, channelId);
+                      intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      getContext().startActivity(intent);
+                  } catch (Exception e) {
+                      call.reject("Could not open channel settings: " + e.getMessage());
+                      return;
+                  }
+                  call.resolve();
+              }
+
+              @PluginMethod
               public void enable(PluginCall call) {
                   NotificationManager manager = nm();
                   if (manager != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
