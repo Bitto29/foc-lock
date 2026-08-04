@@ -1556,6 +1556,7 @@ async function toggleDndSession(v){
     toast('Do Not Disturb will activate during sessions.');
     if(CUR) enableSessionDnd();
     localStorage.removeItem('fl_dnd_attempted');
+    maybeGuideToChannelInterruptionSettings();
     return;
   }
   // Always send the person to the real "Do Not Disturb access" screen —
@@ -1564,6 +1565,33 @@ async function toggleDndSession(v){
   // end that made the toggle look broken on any repeat tap. Removed.
   toast('Grant "Do Not Disturb access" for Foc Lock on the screen that just opened, then come back.');
   requestDndAccess();
+}
+
+/* Some OEM skins (Honor/MagicOS confirmed) manage a channel's "Allow
+   interruptions" toggle as their own separate gate on top of the standard
+   Android bypassDnd flag we already set in code — meaning even though the
+   channel is created correctly, the person may still need to flip one
+   switch by hand, once. This guides them straight to that exact screen
+   instead of leaving them to hunt for it, and only ever does this once. */
+async function maybeGuideToChannelInterruptionSettings(){
+  if(!isNativeApp()) return;
+  if(localStorage.getItem('fl_dnd_channel_hint_shown')==='1') return;
+  localStorage.setItem('fl_dnd_channel_hint_shown','1');
+  try{
+    var DP = window.Capacitor.Plugins.DndPlugin;
+    if(!DP || !DP.openChannelSettings) return;
+    toast('One more thing: on the screen that opens, make sure "Allow interruptions" is on for Session Alerts.');
+    setTimeout(function(){
+      DP.openChannelSettings({channelId:'session-alerts'}).catch(function(){});
+    }, 1200);
+  }catch(e){}
+}
+function openSessionChannelSettings(){
+  if(!isNativeApp()){ toast('This only works in the installed app.'); return; }
+  try{
+    var DP = window.Capacitor.Plugins.DndPlugin;
+    if(DP && DP.openChannelSettings) DP.openChannelSettings({channelId:'session-alerts'}).catch(function(){});
+  }catch(e){}
 }
 
 // ===== MATH GATE =====
