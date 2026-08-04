@@ -274,6 +274,21 @@ jobs:
         run: |
           sed -i '/<manifest/a\    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />' android/app/src/main/AndroidManifest.xml
 
+      - name: Disable Android Auto Backup
+        run: |
+          # Android silently backs up app-internal storage (including
+          # localStorage, where all our settings live) to the signed-in
+          # Google account, and restores it automatically on a fresh
+          # install — meaning a "clean" reinstall isn't actually clean if
+          # the same Google account was used before. Disabling this makes
+          # every install genuinely start fresh, matching what a first-time
+          # user would actually see.
+          if grep -q 'android:allowBackup=' android/app/src/main/AndroidManifest.xml; then
+            sed -i 's/android:allowBackup="true"/android:allowBackup="false"/' android/app/src/main/AndroidManifest.xml
+          else
+            sed -i 's/<application/<application android:allowBackup="false"/' android/app/src/main/AndroidManifest.xml
+          fi
+
       - name: Sync Capacitor
         run: npx cap sync
 
