@@ -1558,22 +1558,12 @@ async function toggleDndSession(v){
     localStorage.removeItem('fl_dnd_attempted');
     return;
   }
-  // First attempt: try the standard system screen. If the user already
-  // tried that once and came back still not granted — some phones (Honor/
-  // MagicOS in particular) don't reliably list newly-installed apps there
-  // — automatically fall back to the app's own info page instead, which
-  // exists identically on every device and often has the same toggle
-  // reachable through it. The person never has to go looking for this
-  // themselves; the app just tries the next thing on its own.
-  var attempted = localStorage.getItem('fl_dnd_attempted')==='1';
-  if(!attempted){
-    localStorage.setItem('fl_dnd_attempted','1');
-    toast('Grant "Do Not Disturb access" for Foc Lock on the screen that just opened, then come back.');
-    requestDndAccess();
-  } else {
-    toast('Trying an alternate settings screen — look for "Do Not Disturb" or "Other permissions" for Foc Lock there.');
-    openDndAppInfoFallback();
-  }
+  // Always send the person to the real "Do Not Disturb access" screen —
+  // the App Info page fallback this used to try on a second attempt never
+  // actually showed DND access on the devices we tested, so it was a dead
+  // end that made the toggle look broken on any repeat tap. Removed.
+  toast('Grant "Do Not Disturb access" for Foc Lock on the screen that just opened, then come back.');
+  requestDndAccess();
 }
 
 // ===== MATH GATE =====
