@@ -13,7 +13,9 @@ var D = {
   sessNotif: localStorage.getItem('fl_sn') !== '0',
   voiceInput: localStorage.getItem('fl_vi') !== '0',
   pipKeepAwake: localStorage.getItem('fl_pka') === '1',
-  dndSession: localStorage.getItem('fl_dnd') === '1'
+  dndSession: localStorage.getItem('fl_dnd') === '1',
+  checkinIntervalNormal: parseInt(localStorage.getItem('fl_cin')||'5',10),
+  checkinIntervalFs: parseInt(localStorage.getItem('fl_cif')||'5',10)
 };
 
 var CUR = null;
@@ -48,6 +50,11 @@ function saveSessionState(){
   }));
 }
 function clearSessionState(){ localStorage.removeItem('fl_cur'); }
+function checkinIntervalMs(){
+  var min = CUR && CUR.lock ? D.checkinIntervalFs : D.checkinIntervalNormal;
+  min = parseInt(min,10); if(!min || min<1) min=5;
+  return min*60000;
+}
 function syncReminderLoop(){
   clearInterval(REMTMR); clearInterval(PNTMR);
   if(!CUR || !D.sessNotif) return;
@@ -56,15 +63,15 @@ function syncReminderLoop(){
     return;
   }
   // On native, scheduleNativeSessionReminders() already handed the OS a full
-  // batch of 5-min alarms that fire independent of JS. Running this
-  // setInterval too meant BOTH fired around the same time -> duplicate
-  // notification every ~5 min whenever the JS was still alive. Native alarms
+  // batch of alarms at the configured interval that fire independent of JS.
+  // Running this setInterval too meant BOTH fired around the same time ->
+  // duplicate notification whenever the JS was still alive. Native alarms
   // alone are the reliable path (they survive backgrounding/sleep), so skip
   // this loop entirely on native and let them be the single source of truth.
   if(isNativeApp()) return;
   REMTMR = setInterval(function(){
     notifyApp('Foc Lock', CUR.lock ? 'Stay focused. Your session is still running.' : 'Study check-in: are you still studying?', {tag:'study-check',requireInteraction:false});
-  }, 300000);
+  }, checkinIntervalMs());
 }
 function restoreSessionState(){
   var raw = localStorage.getItem('fl_cur');
@@ -166,6 +173,8 @@ function persistLocal(){
   localStorage.setItem('fl_vi',D.voiceInput?'1':'0');
   localStorage.setItem('fl_pka',D.pipKeepAwake?'1':'0');
   localStorage.setItem('fl_dnd',D.dndSession?'1':'0');
+  localStorage.setItem('fl_cin',String(D.checkinIntervalNormal||5));
+  localStorage.setItem('fl_cif',String(D.checkinIntervalFs||5));
   if((D.name||'').trim()) localStorage.setItem('fl_nm',D.name.trim());
   else localStorage.removeItem('fl_nm');
   localStorage.setItem('fl_st',JSON.stringify(D.streak));
@@ -833,8 +842,19 @@ window.addEventListener('popstate',function(e){
   if(sfoco&&sfoco.classList.contains('open')){
     sfoco.classList.remove('open'); history.pushState(s,'',''); return;
   }
-  /* 3. PiP minimized — maximize back */
-  if(SESS_MIN){ maximizeSess(); history.pushState(s,'',''); return; }
+  /* 3. PiP minimized — on native, back should behave like the home button
+     (leave into PiP) rather than un-minimizing back to the full session
+     view. Calling enterPip() directly here works reliably even without
+     onUserLeaveHint's special timing, since this runs while the activity
+     is still fully resumed — the back-button case doesn't have the same
+     "about to lose focus" race the home-button path has to work around. */
+  if(SESS_MIN){
+    if(isNativeApp() && CUR && window.Capacitor && window.Capacitor.Plugins.PipPlugin){
+      try{ window.Capacitor.Plugins.PipPlugin.enterPip(); }catch(e){}
+      history.pushState(s,'',''); return;
+    }
+    maximizeSess(); history.pushState(s,'',''); return;
+  }
 
   /* 4. Other modals */
   var modals=['session-calc-modal','mgate','sm','auth-modal','manual-modal','edit-session-modal','friends-modal','name-modal'];
@@ -1664,14 +1684,20 @@ async function sendNativeNotif(t,b,o){
 
 /* ── Native scheduled reminders for the current session ──
    Android suspends JS timers in the background, so instead of relying on
-   setInterval to "check and fire" every 5 minutes, we hand Android's own
+   setInterval to "check and fire" every N minutes, we hand Android's own
    alarm system a full batch of future-timed notifications up front. The OS
    fires them independent of whether our JS is still running.
    allowWhileIdle:true is required so these still fire while the phone is
    asleep/in Doze — without it Android batches or drops them unpredictably,
-   which is why delivery used to be hit-or-miss. */
+   which is why delivery used to be hit-or-miss.
+   The interval itself is configurable separately for normal vs fullscreen
+   sessions (Settings). Whatever interval is chosen, the batch always
+   covers the same ~2 hour window — fewer notifications needed for a longer
+   interval, more for a shorter one — capped at NATIVE_REMINDER_MAX so a
+   very short interval can't schedule an unreasonable number of alarms. */
 var NATIVE_REMINDER_BASE_ID = 5000;
-var NATIVE_REMINDER_COUNT = 24; // covers the next 2 hours, every 5 min
+var NATIVE_REMINDER_MAX = 60; // hard cap regardless of interval chosen
+var NATIVE_REMINDER_COVERAGE_MIN = 120; // always cover ~2 hours
 
 async function scheduleNativeSessionReminders(){
   if(!isNativeApp() || !CUR || !D.sessNotif) return;
@@ -1683,19 +1709,27 @@ async function scheduleNativeSessionReminders(){
     var ok = await ensureNativeNotifPermission();
     if(!ok) return;
     await ensureDndBypassChannels();
+    // Always clear any previously-scheduled batch first — this function can
+    // now be called mid-session (e.g. the interval setting changed), not
+    // just at fresh session start, so stale leftover entries at a
+    // different cadence need to be cleared before scheduling the new ones.
+    await cancelNativeSessionReminders();
     var LN = window.Capacitor.Plugins.LocalNotifications;
+    var intervalMs = checkinIntervalMs();
+    var intervalMin = intervalMs/60000;
+    var count = Math.min(NATIVE_REMINDER_MAX, Math.max(1, Math.ceil(NATIVE_REMINDER_COVERAGE_MIN/intervalMin)));
     var notifications = [];
     var now = Date.now();
     var body = CUR.lock
       ? 'Stay focused. Your session is still running.'
       : 'Study check-in: are you still studying?';
-    for(var i = 1; i <= NATIVE_REMINDER_COUNT; i++){
+    for(var i = 1; i <= count; i++){
       notifications.push({
         id: NATIVE_REMINDER_BASE_ID + i,
         title: 'Foc Lock',
         body: body,
         channelId: 'session-alerts',
-        schedule: { at: new Date(now + i * 300000), allowWhileIdle: true }
+        schedule: { at: new Date(now + i * intervalMs), allowWhileIdle: true }
       });
     }
     await LN.schedule({ notifications: notifications });
@@ -1707,7 +1741,7 @@ async function cancelNativeSessionReminders(){
   try{
     var LN = window.Capacitor.Plugins.LocalNotifications;
     var ids = [];
-    for(var i = 1; i <= NATIVE_REMINDER_COUNT; i++) ids.push({id: NATIVE_REMINDER_BASE_ID + i});
+    for(var i = 1; i <= NATIVE_REMINDER_MAX; i++) ids.push({id: NATIVE_REMINDER_BASE_ID + i});
     await LN.cancel({ notifications: ids });
   }catch(e){}
 }
@@ -1811,6 +1845,22 @@ function toggleSessionNotif(v){
   }
   toast(D.sessNotif ? 'Session notifications on.' : 'Session notifications off.');
 }
+function setCheckinInterval(mode,v){
+  var min = parseInt(v,10); if(!min || min<1) min=5;
+  if(mode==='fs') D.checkinIntervalFs = min;
+  else D.checkinIntervalNormal = min;
+  localStorage.setItem('fl_cin', String(D.checkinIntervalNormal));
+  localStorage.setItem('fl_cif', String(D.checkinIntervalFs));
+  scheduleCloudSave();
+  // Re-apply immediately if this setting matches the currently running
+  // session's mode (normal vs fullscreen-locked), rather than waiting for
+  // the next pause/resume/start to pick up the new interval.
+  if(CUR && D.sessNotif && !CUR.paused){
+    var appliesNow = (mode==='fs') === !!CUR.lock;
+    if(appliesNow){ syncReminderLoop(); scheduleNativeSessionReminders(); }
+  }
+  toast('Check-in interval updated to '+min+' min.');
+}
 async function toggleVoiceInput(v){
   D.voiceInput = !!v;
   localStorage.setItem('fl_vi', D.voiceInput?'1':'0');
@@ -1831,6 +1881,10 @@ function renderSettingsToggles(){
   if(pel) pel.checked = !!D.pipKeepAwake;
   var del = document.getElementById('dnd-session-toggle');
   if(del) del.checked = !!D.dndSession;
+  var cin = document.getElementById('checkin-interval-normal');
+  if(cin) cin.value = String(D.checkinIntervalNormal||5);
+  var cif = document.getElementById('checkin-interval-fs');
+  if(cif) cif.value = String(D.checkinIntervalFs||5);
 }
 
 // ===== AUDIO =====
@@ -3862,7 +3916,7 @@ function focoAddMsg(role, text, imgSrc, atts){
     spkBtn.className = 'foco-speak-btn';
     spkBtn.title = 'Listen';
     spkBtn.textContent = '🔊';
-    spkBtn.onclick = (function(t){ return function(){ focoSpeak(t); }; })(text);
+    spkBtn.onclick = function(){ toggleMsgSpeak(spkBtn, text); };
     var tsr = document.createElement('div');
     tsr.style.cssText = 'display:flex;align-items:center;gap:4px;';
     tsr.appendChild(ts);
@@ -4068,6 +4122,37 @@ function focoVoice(){
 }
 
 /* Text-to-Speech (per-message "Listen" button only — the toolbar toggle was removed) */
+var SPEAK_ACTIVE_BTN = null;
+function resetSpeakBtn(btn){
+  if(!btn) return;
+  btn.textContent = '🔊';
+  btn.title = 'Listen';
+}
+function toggleMsgSpeak(btn, text){
+  if(!window.speechSynthesis) return;
+  if(SPEAK_ACTIVE_BTN === btn){
+    // Already speaking this exact message — tapping again stops it.
+    window.speechSynthesis.cancel();
+    resetSpeakBtn(btn);
+    SPEAK_ACTIVE_BTN = null;
+    return;
+  }
+  // Switching messages (or starting fresh): stop whatever was playing and
+  // reset that button's icon before starting the new one.
+  window.speechSynthesis.cancel();
+  if(SPEAK_ACTIVE_BTN) resetSpeakBtn(SPEAK_ACTIVE_BTN);
+  var clean = String(text||'').replace(/```[\s\S]*?```/g,'code block').replace(/[*_#`>]/g,'').replace(/<[^>]+>/g,'').replace(/\n+/g,' ');
+  var utt = new SpeechSynthesisUtterance(clean);
+  utt.rate = 1.05; utt.pitch = 1; utt.volume = 1;
+  utt.onend = utt.onerror = function(){
+    if(SPEAK_ACTIVE_BTN === btn) SPEAK_ACTIVE_BTN = null;
+    resetSpeakBtn(btn);
+  };
+  btn.textContent = '⏹';
+  btn.title = 'Stop';
+  SPEAK_ACTIVE_BTN = btn;
+  window.speechSynthesis.speak(utt);
+}
 function focoSpeak(text){
   if(!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
@@ -4268,7 +4353,6 @@ async function focoShowPollinationsImage(prompt){
 /* ===== SESSION FOCO POPUP ===== */
 var SFOCO_HIST = [];
 var SFOCO_ATTS = [];
-var SFOCO_TTS = false;
 var SFOCO_RECOG = null;
 var SFOCO_SID = null;
 
@@ -4374,7 +4458,6 @@ async function sfocoSend(){
       sfocoAddMsg('bot', reply);
     }
 
-    if(SFOCO_TTS) sfocoSpeak(cleanReply || reply);
     sfocoSaveToHistory();
   }catch(err){
     sfocoRmTyping(tid);
@@ -4401,7 +4484,7 @@ function sfocoAddMsg(role, text, atts, imgSrc){
   }
 
   var col = document.createElement('div');
-  col.style.cssText = 'display:flex;flex-direction:column;gap:3px;max-width:78%;' + (role === 'user' ? 'align-items:flex-end;' : '');
+  col.className = 'sfoco-col ' + (role === 'user' ? 'user' : '');
 
   if(atts && atts.length){
     atts.forEach(function(a){
@@ -4426,7 +4509,26 @@ function sfocoAddMsg(role, text, atts, imgSrc){
     bubble.textContent = text;
   }
 
+  var ts = document.createElement('div');
+  ts.className = 'sfoco-ts';
+  var nowTs = new Date();
+  ts.textContent = nowTs.getHours().toString().padStart(2,'0') + ':' + nowTs.getMinutes().toString().padStart(2,'0');
+
   col.appendChild(bubble);
+  if(role === 'bot'){
+    var spkBtn = document.createElement('button');
+    spkBtn.className = 'sfoco-speak-btn';
+    spkBtn.title = 'Listen';
+    spkBtn.textContent = '🔊';
+    spkBtn.onclick = function(){ toggleMsgSpeak(spkBtn, text); };
+    var tsr = document.createElement('div');
+    tsr.style.cssText = 'display:flex;align-items:center;gap:4px;';
+    tsr.appendChild(ts);
+    tsr.appendChild(spkBtn);
+    col.appendChild(tsr);
+  } else {
+    col.appendChild(ts);
+  }
   div.appendChild(av);
   div.appendChild(col);
   wrap.appendChild(div);
@@ -4590,19 +4692,7 @@ function sfocoVoice(){
 }
 
 /* TTS */
-function sfocoToggleTTS(){
-  SFOCO_TTS = !SFOCO_TTS;
-  var btn = document.getElementById('sfoco-tts-btn');
-  if(SFOCO_TTS){
-    btn.classList.add('on');
-    toast('TTS on');
-  } else {
-    btn.classList.remove('on');
-    if(window.speechSynthesis) window.speechSynthesis.cancel();
-    toast('TTS off');
-  }
-}
-
+/* Text-to-Speech (per-message "Listen" button only — the toolbar toggle was removed) */
 function sfocoSpeak(text){
   if(!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
