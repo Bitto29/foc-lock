@@ -1043,7 +1043,7 @@ body{background:var(--bg);}
   transition:color .2s ease;
 }
 .back-btn:hover{color:var(--accent2);}
-/*.page-title{font-size:21px;font-weight:900;margin-bottom:14px;letter-spacing:-.3px;}*/
+.page-title{font-size:21px;font-weight:900;margin-bottom:14px;letter-spacing:-.3px;}
 
 /* REMINDERS */
 .ritem{
