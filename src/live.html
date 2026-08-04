@@ -865,6 +865,9 @@
           </div>
           <label class="tgl"><input type="checkbox" id="dnd-session-toggle" onchange="toggleDndSession(this.checked)"><span class="tslider"></span></label>
         </div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+          <span onclick="openSessionChannelSettings()" style="font-size:11px;color:var(--accent2);font-weight:700;cursor:pointer;">On some phones you'll also need to enable "Allow interruptions" for Session Alerts — tap here to check &rarr;</span>
+        </div>
       </div>
       <div class="card">
         <div class="danger-zone-label">Danger Zone</div>
@@ -1048,7 +1051,7 @@
     <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
       <button id="fs-toggle-btn" onclick="toggleSessionFullscreen()" title="Fullscreen"
         style="background:none;border:1.5px solid var(--border2);border-radius:9px;padding:6px 10px;cursor:pointer;color:var(--text2);display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;font-family:var(--font);transition:all .15s;">
-        <!--<svg id="fs-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>-->
+        <svg id="fs-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
         <span class="fs-btn-lbl">Fullscreen</span>
       </button>
       <button onclick="minimizeSess()" title="Minimize"
