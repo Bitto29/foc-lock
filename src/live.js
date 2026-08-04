@@ -87,7 +87,7 @@ function restoreSessionState(){
     };
     document.getElementById('sess').classList.add('active');
     document.getElementById('s-subj').textContent = CUR.subj;
-    document.getElementById('s-mode').textContent = CUR.timed ? (Math.round(CUR.total/60)+' min session'+(CUR.lock?' â€¢ Fullscreen lock':' â€¢ Relaxed mode')) : ('Open session'+(CUR.lock?' â€¢ Fullscreen lock':' â€¢ Relaxed mode'));
+    document.getElementById('s-mode').textContent = CUR.timed ? (Math.round(CUR.total/60)+' min session'+(CUR.lock?' • Fullscreen lock':' • Relaxed mode')) : ('Open session'+(CUR.lock?' • Fullscreen lock':' • Relaxed mode'));
     document.getElementById('s-status').textContent = CUR.paused ? 'Paused' : 'In Progress';
     document.getElementById('btn-pause').style.display = CUR.paused ? 'none' : 'flex';
     document.getElementById('btn-resume').style.display = CUR.paused ? 'flex' : 'none';
@@ -383,14 +383,14 @@ function updateCloudStatus(text){
   chip.textContent=AUTH.user?(text||'Cloud sync on'):'Local only';
 }
 
-/* Small optional status badge on the Progress tab â€” safe no-op if the
+/* Small optional status badge on the Progress tab — safe no-op if the
    element doesn't exist in the HTML. Shows local-data-always-works state
    clearly, and flips automatically on connectivity changes. */
 function updateProgressSyncBadge(){
   var badge=document.getElementById('progress-sync-badge');
   if(!badge)return;
   if(!navigator.onLine){
-    badge.textContent='Offline â€” showing local data';
+    badge.textContent='Offline — showing local data';
     badge.style.color='var(--warn,#e5a83b)';
   } else if(AUTH.user){
     badge.textContent='Synced';
@@ -401,7 +401,7 @@ function updateProgressSyncBadge(){
   }
 }
 
-/* Generic "You're offline" badge setter â€” safe no-op if the target element
+/* Generic "You're offline" badge setter — safe no-op if the target element
    doesn't exist in the HTML. Used for features that genuinely need a live
    connection (Foco AI chat, Notes cloud sync). */
 function setOfflineBadge(elId, featureLabel){
@@ -409,7 +409,7 @@ function setOfflineBadge(elId, featureLabel){
   if(!badge)return;
   if(!navigator.onLine){
     badge.style.display='inline-flex';
-    badge.textContent='You\'re offline'+(featureLabel?' â€” '+featureLabel+' needs internet':'');
+    badge.textContent='You\'re offline'+(featureLabel?' — '+featureLabel+' needs internet':'');
     badge.style.color='var(--warn,#e5a83b)';
   } else {
     badge.style.display='none';
@@ -545,7 +545,7 @@ function showForgotStep(step){
   var title=document.getElementById('forgot-modal-title');
   if(title)title.textContent=step===1?'Reset your password':'Enter your code';
   var help=document.getElementById('forgot-help');
-  if(help)help.textContent=step===1?"We'll email you a 6-digit code to reset your password.":('Sent to '+FORGOT.email+'. It can take up to a minute to arrive â€” check spam if you don\'t see it.');
+  if(help)help.textContent=step===1?"We'll email you a 6-digit code to reset your password.":('Sent to '+FORGOT.email+'. It can take up to a minute to arrive — check spam if you don\'t see it.');
 }
 function startResendCooldown(seconds){
   var link=document.getElementById('forgot-resend-link');
@@ -813,7 +813,7 @@ function gSub(id,_skipHistory){
   if(contentElSub)contentElSub.scrollTop=0;
   if(!_skipHistory){
     if(id==='more-main'){
-      // going back to more-main â€” don't push, this IS the back action
+      // going back to more-main — don't push, this IS the back action
       history.pushState({type:'tab',tab:'more',sub:'more-main'},'','');
     } else {
       history.pushState({type:'sub',sub:id},'','');
@@ -842,11 +842,11 @@ window.addEventListener('popstate',function(e){
   if(sfoco&&sfoco.classList.contains('open')){
     sfoco.classList.remove('open'); history.pushState(s,'',''); return;
   }
-  /* 3. PiP minimized â€” on native, back should behave like the home button
+  /* 3. PiP minimized — on native, back should behave like the home button
      (leave into PiP) rather than un-minimizing back to the full session
      view. Calling enterPip() directly here works reliably even without
      onUserLeaveHint's special timing, since this runs while the activity
-     is still fully resumed â€” the back-button case doesn't have the same
+     is still fully resumed — the back-button case doesn't have the same
      "about to lose focus" race the home-button path has to work around. */
   if(SESS_MIN){
     if(isNativeApp() && CUR && window.Capacitor && window.Capacitor.Plugins.PipPlugin){
@@ -874,7 +874,7 @@ window.addEventListener('popstate',function(e){
     }
   }
 
-  /* 5. Sub-page â†’ back to more-main */
+  /* 5. Sub-page → back to more-main */
   if(!s){ goScr('home',null,true); return; }
   if(s.type==='sub'){
     goScr('more',null,true);
@@ -943,7 +943,7 @@ function updHome(){
 
 // ===== START MODAL =====
 function openSM(){
-  if(CUR){ toast('âš¡ A session is already running!'); maximizeSess(); return; }
+  if(CUR){ toast('⚡ A session is already running!'); maximizeSess(); return; }
   SELSUBJ=''; SELT=30; SESS_SUBJS=[]; renderChips();
   document.querySelectorAll('.sm-dur-opt').forEach(function(o){o.classList.remove('sel');});
   var nto=document.getElementById('sm-notimer-opt'); if(nto)nto.classList.remove('sel');
@@ -993,10 +993,10 @@ function renderSubjTags(){
     var tag=document.createElement('div'); tag.className='subj-tag';
     var nm=document.createElement('span'); nm.textContent=obj.s; tag.appendChild(nm);
     if(obj.t){
-      var sep=document.createElement('span'); sep.textContent=' Â· '; sep.style.opacity='.4'; tag.appendChild(sep);
+      var sep=document.createElement('span'); sep.textContent=' · '; sep.style.opacity='.4'; tag.appendChild(sep);
       var tp=document.createElement('span'); tp.className='stag-type'; tp.textContent=obj.t; tag.appendChild(tp);
     }
-    var rm=document.createElement('button'); rm.className='rm-tag'; rm.textContent='Ã—';
+    var rm=document.createElement('button'); rm.className='rm-tag'; rm.textContent='×';
     rm.onclick=function(){ SESS_SUBJS.splice(i,1); renderSubjTags(); renderChips(); };
     tag.appendChild(rm); wrap.appendChild(tag);
   });
@@ -1021,30 +1021,30 @@ function setSessionFullscreenUI(){
 }
 document.addEventListener('fullscreenchange',function(){
   // Browser fullscreen can be exited natively (Esc key) without going through
-  // our toggle button â€” keep the immersive UI + lock state in sync either way.
+  // our toggle button — keep the immersive UI + lock state in sync either way.
   if(!document.fullscreenElement&&CUR&&CUR.lock){
     CUR.lock=false; syncWakeLock(); syncReminderLoop(); saveSessionState(); setSessionFullscreenUI();
     var sm=document.getElementById('s-mode');
-    if(sm)sm.textContent=CUR.timed?(Math.round(CUR.total/60)+' min session â€¢ Relaxed mode'):'Open session â€¢ Relaxed mode';
+    if(sm)sm.textContent=CUR.timed?(Math.round(CUR.total/60)+' min session • Relaxed mode'):'Open session • Relaxed mode';
   }
 });
 async function enterFullscreenMode(){ try{ if(document.fullscreenElement==null&&document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); }catch(e){} await syncWakeLock(); }
 async function exitFullscreenMode(){ try{ if(document.fullscreenElement&&document.exitFullscreen) await document.exitFullscreen(); }catch(e){} syncWakeLock(); }
 async function toggleSessionFullscreen(){
   if(!CUR)return;
-  if(!CUR.lock){ CUR.lock=true; await enterFullscreenMode(); document.getElementById('s-mode').textContent=CUR.timed?(Math.round(CUR.total/60)+' min session â€¢ Fullscreen lock'):'Open session â€¢ Fullscreen lock'; toast('Fullscreen lock enabled.'); }
-  else{ CUR.lock=false; await exitFullscreenMode(); document.getElementById('s-mode').textContent=CUR.timed?(Math.round(CUR.total/60)+' min session â€¢ Relaxed mode'):'Open session â€¢ Relaxed mode'; toast('Fullscreen lock disabled.'); }
+  if(!CUR.lock){ CUR.lock=true; await enterFullscreenMode(); document.getElementById('s-mode').textContent=CUR.timed?(Math.round(CUR.total/60)+' min session • Fullscreen lock'):'Open session • Fullscreen lock'; toast('Fullscreen lock enabled.'); }
+  else{ CUR.lock=false; await exitFullscreenMode(); document.getElementById('s-mode').textContent=CUR.timed?(Math.round(CUR.total/60)+' min session • Relaxed mode'):'Open session • Relaxed mode'; toast('Fullscreen lock disabled.'); }
   syncReminderLoop(); saveSessionState(); setSessionFullscreenUI();
 }
 function startSess(){
-  /* Collect subjects â€” include anything still typed but not yet added */
+  /* Collect subjects — include anything still typed but not yet added */
   var custVal=document.getElementById('cust-subj').value.trim();
   var custType=(document.getElementById('subj-type-sel')||{}).value||'';
   if(custVal) SESS_SUBJS.push({s:custVal,t:custType});
   if(!SESS_SUBJS.length) SESS_SUBJS.push({s:'General',t:''});
   var subjs=SESS_SUBJS.map(function(x){return x.s;});
-  /* Build display string: "Math Â· Online Class + Physics Â· Practicals" */
-  var subj=SESS_SUBJS.map(function(x){return x.t?x.s+' Â· '+x.t:x.s;}).join(' + ');
+  /* Build display string: "Math · Online Class + Physics · Practicals" */
+  var subj=SESS_SUBJS.map(function(x){return x.t?x.s+' · '+x.t:x.s;}).join(' + ');
   var subsubj=''; /* no longer used as a single field */
   var mins=SELT; if(mins===-1)mins=parseInt(document.getElementById('cust-t').value)||25;
   closeSM(); ensureBrowserNotifications();
@@ -1052,7 +1052,7 @@ function startSess(){
   /* Display: "Math + Physics (Online Class)" */
   var dispSubj=subsubj?subj+' ('+subsubj+')':subj;
   document.getElementById('s-subj').textContent=dispSubj;
-  document.getElementById('s-mode').textContent=mins>0?mins+' min session â€¢ Relaxed mode':'Open session â€¢ Relaxed mode';
+  document.getElementById('s-mode').textContent=mins>0?mins+' min session • Relaxed mode':'Open session • Relaxed mode';
   document.getElementById('sess').classList.add('active');
   document.getElementById('btn-pause').style.display='flex';
   document.getElementById('btn-resume').style.display='none';
@@ -1110,9 +1110,9 @@ var PIP_WIN=null;
 /* Builds (once) a dedicated full-screen view used only while real Android
    PiP is active. It's injected fresh via JS so no HTML changes are needed.
    CSS hides every other element on the page while it's showing, so the
-   scaled-down PiP capture shows only this clean timer â€” not the nav bar,
+   scaled-down PiP capture shows only this clean timer — not the nav bar,
    header, or the old floating box's expand button (which is meaningless
-   inside a real system PiP window anyway â€” the user exits it by swiping
+   inside a real system PiP window anyway — the user exits it by swiping
    it away or tapping it to return, both handled by Android itself). */
 function ensureNativePipView(){
   if(document.getElementById('native-pip-view')) return;
@@ -1156,14 +1156,14 @@ async function minimizeSess(){
   document.getElementById('sess').classList.remove('active');
   document.getElementById('rbn').classList.remove('show');
 
-  /* Minimizing used to jump straight into native system PiP â€” the app
+  /* Minimizing used to jump straight into native system PiP — the app
      visually vanished into a floating OS window immediately. Now it just
      shows the in-app floating mini player (#sess-pip) and you stay inside
      the app. System PiP only kicks in automatically if you actually leave
-     the app (home button / app switch) while minimized â€” see the
+     the app (home button / app switch) while minimized — see the
      appStateChange listener in setupNativeLifecycleListeners(). */
 
-  /* Try Document Picture-in-Picture (Chrome 116+ desktop/web only â€” not
+  /* Try Document Picture-in-Picture (Chrome 116+ desktop/web only — not
      available inside the Android WebView, so native app always falls
      through to the floating div below). */
   if(!isNativeApp() && window.documentPictureInPicture){
@@ -1203,7 +1203,7 @@ async function minimizeSess(){
       updPipDisp(); return;
     }catch(e){ /* API not available or user denied, fall through to floating div */ }
   }
-  /* In-app floating mini player â€” used on native app always, and as the
+  /* In-app floating mini player — used on native app always, and as the
      web fallback when Document PiP isn't available. */
   document.getElementById('sess-pip').classList.add('show');
   if(CUR.subj)document.getElementById('pip-subj').textContent=CUR.subj;
@@ -1213,13 +1213,13 @@ async function minimizeSess(){
 }
 
 /* Arms/disarms native auto-PiP for whenever the user actually leaves the
-   app (home button / app switch) â€” the real trigger runs natively from
+   app (home button / app switch) — the real trigger runs natively from
    MainActivity.onUserLeaveHint(), not from here (see PipPlugin.java for
    why: it has to be synchronous with that exact callback to work
    reliably, an async JS round-trip after backgrounding starts is too
    late and gets silently ignored by Android). This just tells the native
    side "yes/no, a session is currently minimized."
-   IMPORTANT: this must always actually call setAutoEnterEnabled â€” an
+   IMPORTANT: this must always actually call setAutoEnterEnabled — an
    earlier version bailed out early on an isPipSupported() check, which
    meant disarm calls could silently no-op and leave the native flag stuck
    "on" from a previous session, causing PiP to fire later even with no
@@ -1237,17 +1237,17 @@ async function armNativeAutoPip(on){
    gets captured into the shrunk PiP window, instead of the full app UI.
    Triggered by PipPlugin's own 'showPipView' native event (see
    PipPlugin.maybeAutoEnterPip()), fired by the same native call, right
-   before enterPictureInPictureMode() â€” not by the separate, slower
+   before enterPictureInPictureMode() — not by the separate, slower
    appStateChange event, which arrived too late for Android to have
    captured anything but the full app. */
 /* Forces the browser to actually repaint the mini player instead of
-   leaving a stale composited layer on screen â€” Android WebViews can leave
+   leaving a stale composited layer on screen — Android WebViews can leave
    fixed-position elements looking "broken" (overlapping/blended with page
    content underneath) after the screen sleeps and wakes, until something
    triggers a real reflow. Toggling display off/on synchronously forces
    exactly that. */
 /* Forces the browser to actually repaint the mini player instead of
-   leaving a stale composited layer on screen â€” Android WebViews can leave
+   leaving a stale composited layer on screen — Android WebViews can leave
    fixed-position elements looking "broken" (overlapping/blended with page
    content underneath) after the screen sleeps and wakes, until something
    triggers a real reflow. Toggling display off/on synchronously forces
@@ -1261,7 +1261,7 @@ function repaintPipWidget(){
 }
 // Backup path: visibilitychange fires on screen off/on across virtually all
 // WebView versions, even in cases where the Capacitor App plugin's own
-// appStateChange bridge event might not (belt-and-suspenders â€” cheap to
+// appStateChange bridge event might not (belt-and-suspenders — cheap to
 // have both, and this one doesn't depend on any plugin being registered).
 document.addEventListener('visibilitychange', function(){
   if(document.visibilityState === 'visible' && SESS_MIN) repaintPipWidget();
@@ -1288,7 +1288,7 @@ function setupNativeLifecycleListeners(){
     if(!AppPlugin) return;
     AppPlugin.addListener('appStateChange', function(state){
       if(state.isActive && document.body.classList.contains('native-pip-active')){
-        /* Back in the app â€” Android auto-exits system PiP on its own when
+        /* Back in the app — Android auto-exits system PiP on its own when
            you tap back in, so just reflect that in our UI. If a session is
            still minimized, drop back to the in-app floating mini player
            rather than the full session view. */
@@ -1307,7 +1307,7 @@ function setupNativeLifecycleListeners(){
         if(D.dndSession && CUR && !DND_ACTIVE) enableSessionDnd();
         // Turning the screen off/on (or coming back from any background
         // stretch) can leave the WebView's compositor with a stale paint
-        // for fixed-position elements â€” the mini player renders looking
+        // for fixed-position elements — the mini player renders looking
         // "broken"/overlapping other content until something forces a
         // repaint. Nudging it here fixes that without the person needing
         // to do anything.
@@ -1365,7 +1365,7 @@ function updPipDisp(){
   if(ps2)ps2.textContent=statusStr;
 }
 
-/* Draggable fallback pip â€” whole card is the handle now (no visible drag
+/* Draggable fallback pip — whole card is the handle now (no visible drag
    bar in the redesigned card). A tap (no meaningful movement) expands the
    session; a real drag moves the card instead. */
 var PIP_DID_DRAG = false;
@@ -1425,7 +1425,7 @@ function endSess(done){
   stopPauseCountdown();
   // Timed sessions must never log more than what was actually set. If the
   // app was backgrounded/closed while the timer was running, the JS tick()
-  // loop suspends â€” so by the time anything notices the session should
+  // loop suspends — so by the time anything notices the session should
   // have ended (on reopen, via restoreSessionState()), real elapsed time
   // may have drifted way past the target (e.g. 1 hour instead of the 30
   // min that was set). Math.min() here caps it at the intended total for
@@ -1469,8 +1469,8 @@ function retSess(){ document.getElementById('rbn').classList.remove('show'); }
 async function acqWL(){ try{ if(CUR&&CUR.lock&&'wakeLock' in navigator) WL=await navigator.wakeLock.request('screen'); }catch(e){} }
 function relWL(){ if(WL){ try{WL.release();}catch(e){} WL=null; } }
 /* Unified wake-lock decision: keep the screen on for fullscreen-lock
-   sessions (as before), OR â€” if the "Keep Screen Awake in Mini Player"
-   setting is on â€” while the timer is minimized (in-app floating player or
+   sessions (as before), OR — if the "Keep Screen Awake in Mini Player"
+   setting is on — while the timer is minimized (in-app floating player or
    native system PiP), so the countdown stays visible instead of the
    screen sleeping mid-PiP. */
 async function syncWakeLock(){
@@ -1499,22 +1499,22 @@ async function togglePipKeepAwake(v){
    For Foc Lock's own notifications to still ring/vibrate normally while the
    phone is in this Priority DND mode, the native side needs to create the
    "session-alerts" and "study-reminders" channels with
-   NotificationChannel.setBypassDnd(true) â€” that's a one-line addition
+   NotificationChannel.setBypassDnd(true) — that's a one-line addition
    wherever those channels get created natively (or, if the plugin creates
    them itself, right there). Without that bypass flag, DND would silence
    Foc Lock too, which defeats the point.
    If your existing DndPlugin uses different method names, tell me and I'll
-   adjust this file to match â€” everything below fails silently/harmlessly
+   adjust this file to match — everything below fails silently/harmlessly
    if a method is missing, so nothing breaks in the meantime. */
 var DND_ACTIVE = false;
 var DND_CHANNELS_READY_PROMISE = null;
 
 /* Must run before anything schedules a session-alerts/study-reminders
-   notification â€” everything that needs those channels now awaits this
+   notification — everything that needs those channels now awaits this
    same shared promise instead of separately calling
    LocalNotifications.createChannel() (which doesn't support bypassDnd and,
    if it ever won the race to create the channel first, would permanently
-   lock DND-bypass off for that install â€” Android only honors bypassDnd at
+   lock DND-bypass off for that install — Android only honors bypassDnd at
    first creation). Safe to call every launch: if the channel already
    exists, DndPlugin.ensureBypassChannels() just leaves it alone. */
 async function ensureDndBypassChannels(){
@@ -1561,7 +1561,7 @@ async function enableSessionDnd(){
     var DP = window.Capacitor.Plugins.DndPlugin;
     if(!DP) return;
     var ok = await hasDndAccess();
-    if(!ok) return; // permission not granted yet â€” toggleDndSession() already nudges for it
+    if(!ok) return; // permission not granted yet — toggleDndSession() already nudges for it
     await DP.enable();
     DND_ACTIVE = true;
   }catch(e){}
@@ -1592,7 +1592,7 @@ async function toggleDndSession(v){
     maybeGuideToChannelInterruptionSettings();
     return;
   }
-  // Always send the person to the real "Do Not Disturb access" screen â€”
+  // Always send the person to the real "Do Not Disturb access" screen —
   // the App Info page fallback this used to try on a second attempt never
   // actually showed DND access on the devices we tested, so it was a dead
   // end that made the toggle look broken on any repeat tap. Removed.
@@ -1602,7 +1602,7 @@ async function toggleDndSession(v){
 
 /* Some OEM skins (Honor/MagicOS confirmed) manage a channel's "Allow
    interruptions" toggle as their own separate gate on top of the standard
-   Android bypassDnd flag we already set in code â€” meaning even though the
+   Android bypassDnd flag we already set in code — meaning even though the
    channel is created correctly, the person may still need to flip one
    switch by hand, once. This guides them straight to that exact screen
    instead of leaving them to hunt for it, and only ever does this once. */
@@ -1635,7 +1635,7 @@ function genMQ(){
   if(op==='+'){a=ri(1,20);b=ri(1,20);MANS=a+b;}
   else if(op==='-'){a=ri(10,30);b=ri(1,a);MANS=a-b;}
   else{a=ri(2,9);b=ri(2,9);MANS=a*b;}
-  document.getElementById('m-q').textContent=a+' '+(op==='*'?'Ã—':op)+' '+b+' = ?';
+  document.getElementById('m-q').textContent=a+' '+(op==='*'?'×':op)+' '+b+' = ?';
 }
 function ri(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
 function chkMath(){ if(parseInt(document.getElementById('m-ans').value)===MANS){closeMG();pauseSess();} }
@@ -1682,7 +1682,7 @@ function isNativeApp(){
 }
 
 /* Android tells us via this custom event (fired from native MainActivity)
-   whenever the real system PiP window opens or closes â€” e.g. the user taps
+   whenever the real system PiP window opens or closes — e.g. the user taps
    the bubble to expand it back, or swipes it away. We use it to restore the
    full app UI cleanly instead of leaving it stuck in the minimized state. */
 window.addEventListener('pipModeChanged', function(e){
@@ -1709,7 +1709,7 @@ var NATIVE_NOTIF_ID_COUNTER = 1000;
 
 /* Session-alert notifications use the channel created natively by
    ensureDndBypassChannels() (with setBypassDnd(true) baked in from first
-   creation â€” see DndPlugin.java). We deliberately do NOT also create this
+   creation — see DndPlugin.java). We deliberately do NOT also create this
    channel via LocalNotifications.createChannel() here: that call doesn't
    support bypassDnd, and if it ever won the race and created the channel
    first, the bypass flag would be permanently locked out for that install
@@ -1733,18 +1733,18 @@ async function sendNativeNotif(t,b,o){
   }catch(e){ return false; }
 }
 
-/* â”€â”€ Native scheduled reminders for the current session â”€â”€
+/* ── Native scheduled reminders for the current session ──
    Android suspends JS timers in the background, so instead of relying on
    setInterval to "check and fire" every N minutes, we hand Android's own
    alarm system a full batch of future-timed notifications up front. The OS
    fires them independent of whether our JS is still running.
    allowWhileIdle:true is required so these still fire while the phone is
-   asleep/in Doze â€” without it Android batches or drops them unpredictably,
+   asleep/in Doze — without it Android batches or drops them unpredictably,
    which is why delivery used to be hit-or-miss.
    The interval itself is configurable separately for normal vs fullscreen
    sessions (Settings). Whatever interval is chosen, the batch always
-   covers the same ~2 hour window â€” fewer notifications needed for a longer
-   interval, more for a shorter one â€” capped at NATIVE_REMINDER_MAX so a
+   covers the same ~2 hour window — fewer notifications needed for a longer
+   interval, more for a shorter one — capped at NATIVE_REMINDER_MAX so a
    very short interval can't schedule an unreasonable number of alarms. */
 var NATIVE_REMINDER_BASE_ID = 5000;
 var NATIVE_REMINDER_MAX = 60; // hard cap regardless of interval chosen
@@ -1753,14 +1753,14 @@ var NATIVE_REMINDER_COVERAGE_MIN = 120; // always cover ~2 hours
 async function scheduleNativeSessionReminders(){
   if(!isNativeApp() || !CUR || !D.sessNotif) return;
   try{
-    // Was missing entirely before â€” without this, if the person had never
+    // Was missing entirely before — without this, if the person had never
     // granted notification permission, these got "scheduled" successfully
     // from the app's point of view but Android silently dropped every one
     // of them, which looked exactly like "sometimes doesn't come."
     var ok = await ensureNativeNotifPermission();
     if(!ok) return;
     await ensureDndBypassChannels();
-    // Always clear any previously-scheduled batch first â€” this function can
+    // Always clear any previously-scheduled batch first — this function can
     // now be called mid-session (e.g. the interval setting changed), not
     // just at fresh session start, so stale leftover entries at a
     // different cadence need to be cleared before scheduling the new ones.
@@ -1797,7 +1797,7 @@ async function cancelNativeSessionReminders(){
   }catch(e){}
 }
 
-/* â”€â”€ Native daily study reminders (More â†’ Reminders) â”€â”€
+/* ── Native daily study reminders (More → Reminders) ──
    checkRems() only fires while the app's JS is alive, which Android kills
    in the background. So the user-set reminder times (D.rems) need to be
    handed to the OS as recurring alarms, same idea as the session reminders
@@ -1808,10 +1808,10 @@ var NATIVE_DAILY_REMINDER_BASE_ID = 9000;
 var NATIVE_DAILY_REMINDER_MAX = 200; // generous headroom for however many reminders the user adds
 
 /* Schedules D.rems as recurring native OS alarms so they fire even with the
-   app fully closed â€” checkRems() (JS polling every 60s) only works while
+   app fully closed — checkRems() (JS polling every 60s) only works while
    the app is open, since Android suspends JS timers in the background.
    Channel creation for "study-reminders" (with bypassDnd baked in) is
-   handled by ensureDndBypassChannels() â€” see the note on that function for
+   handled by ensureDndBypassChannels() — see the note on that function for
    why it must never be created via LocalNotifications.createChannel()
    directly. */
 async function scheduleAllNativeDailyReminders(){
@@ -1821,7 +1821,7 @@ async function scheduleAllNativeDailyReminders(){
     if(!LN) return;
 
     // Always clear the whole block first, then re-add whatever is currently
-    // on â€” simpler and safer than trying to diff old vs new reminder lists.
+    // on — simpler and safer than trying to diff old vs new reminder lists.
     var cancelIds = [];
     for(var i = 0; i < NATIVE_DAILY_REMINDER_MAX; i++) cancelIds.push({id: NATIVE_DAILY_REMINDER_BASE_ID + i});
     try{ await LN.cancel({ notifications: cancelIds }); }catch(e){}
@@ -1838,7 +1838,7 @@ async function scheduleAllNativeDailyReminders(){
       if(isNaN(hh) || isNaN(mm)) return;
       notifications.push({
         id: NATIVE_DAILY_REMINDER_BASE_ID + i,
-        title: 'Foc Lock â€“ Study Reminder',
+        title: 'Foc Lock – Study Reminder',
         body: r.l || 'Time to study!',
         channelId: 'study-reminders',
         schedule: { on: { hour: hh, minute: mm }, allowWhileIdle: true },
@@ -1918,7 +1918,7 @@ async function toggleVoiceInput(v){
   scheduleCloudSave();
   if(D.voiceInput && isNativeApp()){
     var ok = await ensureNativeVoicePermission();
-    toast(ok ? 'Voice input on.' : 'Microphone permission denied â€” voice input won\'t work until it\'s granted.');
+    toast(ok ? 'Voice input on.' : 'Microphone permission denied — voice input won\'t work until it\'s granted.');
   } else {
     toast(D.voiceInput ? 'Voice input on.' : 'Voice input off.');
   }
@@ -1961,7 +1961,7 @@ function mkNoise(type){
   return{src:src,gain:gain,type:type};
 }
 function togAmb(type,btn){
-  /* Stop lofi and bengali first â€” only one music at a time */
+  /* Stop lofi and bengali first — only one music at a time */
   stopLofi(); stopBengali();
   if(CURNAMB===type){
     if(ANODES[type]){try{ANODES[type].src.stop();}catch(e){} delete ANODES[type];}
@@ -2036,7 +2036,7 @@ function playBengaliStation(index,showToast){
   if(nm)nm.textContent=station.name;
   if(st)st.textContent='Connecting...';
   a.src=station.url; a.volume=document.getElementById('beng-vol').value/100;
-  a.play().then(function(){ if(st)st.textContent='Now playing â€¢ '+station.sub; if(showToast)toast('Playing '+station.name); updateSessionMusicUI(); })
+  a.play().then(function(){ if(st)st.textContent='Now playing • '+station.sub; if(showToast)toast('Playing '+station.name); updateSessionMusicUI(); })
   .catch(function(){ if(st)st.textContent='Stream unavailable. Try next station.'; updateSessionMusicUI(); toast('Could not play this station'); });
 }
 function nextBengali(){ CUR_BENGALI_INDEX=(CUR_BENGALI_INDEX+1)%BENGALI_STATIONS.length; playBengaliStation(CUR_BENGALI_INDEX,true); }
@@ -2075,15 +2075,15 @@ function updateSessionMusicUI(){
   var bengAudio=document.getElementById('bg-audio');
   var label='No music selected'; var playing=false;
   if(['rain','white','forest','ocean'].includes(SAMAN)){
-    label='Ambient â€¢ '+getAmbientLabel(SAMAN)+(CURNAMB===SAMAN&&ANODES[SAMAN]?' â€¢ Playing':' â€¢ Paused');
+    label='Ambient • '+getAmbientLabel(SAMAN)+(CURNAMB===SAMAN&&ANODES[SAMAN]?' • Playing':' • Paused');
     playing=(CURNAMB===SAMAN&&!!ANODES[SAMAN]);
   }else if(SAMAN==='lofi'){
     var st=LOFI_STATIONS[CUR_LOFI_INDEX]||LOFI_STATIONS[0];
-    label='Lo-Fi â€¢ '+(st?st.name:'Station')+(lofiAudio&&!lofiAudio.paused&&CURLOFI?' â€¢ Playing':' â€¢ Paused');
+    label='Lo-Fi • '+(st?st.name:'Station')+(lofiAudio&&!lofiAudio.paused&&CURLOFI?' • Playing':' • Paused');
     playing=!!(lofiAudio&&!lofiAudio.paused&&CURLOFI);
   }else if(SAMAN==='bengali'){
     var bs=BENGALI_STATIONS[CUR_BENGALI_INDEX]||BENGALI_STATIONS[0];
-    label='Songs â€¢ '+(bs?bs.name:'Radio')+(bengAudio&&!bengAudio.paused&&bengAudio.src?' â€¢ Playing':' â€¢ Paused');
+    label='Songs • '+(bs?bs.name:'Radio')+(bengAudio&&!bengAudio.paused&&bengAudio.src?' • Playing':' • Paused');
     playing=!!(bengAudio&&!bengAudio.paused&&bengAudio.src);
   }
   if(state)state.textContent=label;
@@ -2219,7 +2219,7 @@ function getChartData(){
   }
   return{labels:labels,datasets:[{data:data,backgroundColor:PERIOD==='week'?'rgba(61,143,224,.6)':'rgba(61,143,224,.55)',hoverBackgroundColor: PERIOD === 'week' ? 'rgba(110, 180, 245, 0.85)' : 'rgba(110, 180, 245, 0.8)',borderRadius:6,borderSkipped:false}]};
 }
-/* â”€â”€ DAILY ACTIVITY CHART â”€â”€ */
+/* ── DAILY ACTIVITY CHART ── */
 var DCHART=null;
 var DAY_VIEW='today';
 var DAY_DATE=today();
@@ -2310,7 +2310,7 @@ function updDayChart(){
   var ctx=canvasEl.getContext('2d');
   var chartH=canvasEl.parentElement?canvasEl.parentElement.clientHeight||160:160;
 
-  /* Gradient fill â€” blue to transparent */
+  /* Gradient fill — blue to transparent */
   var grad=ctx.createLinearGradient(0,0,0,chartH);
   grad.addColorStop(0,'rgba(59,130,246,.5)');
   grad.addColorStop(0.65,'rgba(59,130,246,.12)');
@@ -2424,9 +2424,9 @@ function applyCustomSubjRange(){
 }
 function getSubjPeriodLabel(){
   if(SUBJ_PERIOD==='all') return '';
-  if(SUBJ_PERIOD==='today') return 'Today â€” '+today();
-  if(SUBJ_PERIOD==='yesterday') return 'Yesterday â€” '+yesterday();
-  if(SUBJ_PERIOD==='custom'&&SUBJ_FROM&&SUBJ_TO) return SUBJ_FROM+' â†’ '+SUBJ_TO;
+  if(SUBJ_PERIOD==='today') return 'Today — '+today();
+  if(SUBJ_PERIOD==='yesterday') return 'Yesterday — '+yesterday();
+  if(SUBJ_PERIOD==='custom'&&SUBJ_FROM&&SUBJ_TO) return SUBJ_FROM+' → '+SUBJ_TO;
   return '';
 }
 function updSBars(){
@@ -2440,7 +2440,7 @@ function updSBars(){
   // Show label
   var labelTxt=getSubjPeriodLabel();
   if(lbl) lbl.innerHTML=labelTxt?'<div class="subj-period-label">'+labelTxt+'</div>':'';
-  // Aggregate â€” credit each subject in s.subjs (multi-subject support)
+  // Aggregate — credit each subject in s.subjs (multi-subject support)
   var tot={}; filtered.forEach(function(s){
     var subjList=s.subjs&&s.subjs.length?s.subjs:[s.subj||'General'];
     subjList.forEach(function(k){ tot[k]=(tot[k]||0)+s.dur; });
@@ -2585,7 +2585,7 @@ var BDGS=[
   {id:'subj5',n:'Explorer',d:'Study 5 different subjects',icon:'book',chk:function(){return uniqueStrings(D.sess.map(function(s){return s.subj;})).length>=5;}},
   {id:'subj10',n:'Polymath',d:'Study 10 different subjects',icon:'book',chk:function(){return uniqueStrings(D.sess.map(function(s){return s.subj;})).length>=10;}},
 
-  /* â”€â”€ Harder / long-haul achievements â”€â”€ */
+  /* ── Harder / long-haul achievements ── */
   {id:'s60',n:'60-Day Streak',d:'Study 60 days in a row',icon:'shield',chk:function(){return D.streak.c>=60;}},
   {id:'s100',n:'Unbreakable',d:'Study 100 days in a row',icon:'shield',chk:function(){return D.streak.c>=100;}},
   {id:'s365',n:'Year of Focus',d:'Study 365 days in a row',icon:'trophy',chk:function(){return D.streak.c>=365;}},
@@ -2726,7 +2726,7 @@ async function renderFriendsLeaderboard(){
     return;
   }
 
-  board.innerHTML='<div class="friend-empty">Loading leaderboardâ€¦</div>';
+  board.innerHTML='<div class="friend-empty">Loading leaderboard…</div>';
   try{
     var res=await SB.rpc('get_friends_leaderboard');
     if(res&&res.error) throw res.error;
@@ -2834,12 +2834,12 @@ async function loadMyFriendCode(){
   var box=document.getElementById('my-friend-code');
   if(!SB||!AUTH.user||!box) return;
   if(MY_FRIEND_CODE){ box.textContent=MY_FRIEND_CODE; return; }
-  box.textContent='Loadingâ€¦';
+  box.textContent='Loading…';
   try{
     var res=await SB.rpc('ensure_friend_code');
     if(res&&res.error) throw res.error;
     MY_FRIEND_CODE = (res.data||'').toString().toUpperCase();
-    box.textContent = MY_FRIEND_CODE || 'â€”';
+    box.textContent = MY_FRIEND_CODE || '—';
   }catch(e){
     box.textContent='Unavailable';
   }
@@ -2873,7 +2873,7 @@ async function addFriendByCode(){
     resultBox.innerHTML='<div class="friend-empty">That\'s your own code.</div>';
     return;
   }
-  resultBox.innerHTML='<div class="friend-empty">Looking up codeâ€¦</div>';
+  resultBox.innerHTML='<div class="friend-empty">Looking up code…</div>';
   try{
     var res=await SB.rpc('find_user_by_code',{p_code:code});
     if(res&&res.error) throw res.error;
@@ -2898,7 +2898,7 @@ async function searchFriendByEmail(){
     resultBox.innerHTML='<div class="friend-empty">That\'s your own email.</div>';
     return;
   }
-  resultBox.innerHTML='<div class="friend-empty">Looking up emailâ€¦</div>';
+  resultBox.innerHTML='<div class="friend-empty">Looking up email…</div>';
   try{
     var res=await SB.rpc('find_user_by_email',{p_email:email});
     if(res&&res.error) throw res.error;
@@ -2931,7 +2931,7 @@ async function renderFriendListModal(){
   var list=document.getElementById('friend-list-modal');
   if(!list) return;
   if(!SB||!AUTH.user){ list.innerHTML='<div class="friend-empty">Sign in required.</div>'; return; }
-  list.innerHTML='<div class="friend-empty">Loadingâ€¦</div>';
+  list.innerHTML='<div class="friend-empty">Loading…</div>';
   try{
     var res=await SB.rpc('get_friends_leaderboard');
     if(res&&res.error) throw res.error;
@@ -3002,7 +3002,7 @@ function renderRems(){
 function renderRemPreview(){
   var c=document.getElementById('rem-preview');
   var ac=D.rems.filter(function(r){return r.on;});
-  if(!ac.length){c.innerHTML='<div style="font-size:13px;color:var(--text2);font-weight:500;">No active reminders. Add some in More â†’ Reminders.</div>';return;}
+  if(!ac.length){c.innerHTML='<div style="font-size:13px;color:var(--text2);font-weight:500;">No active reminders. Add some in More → Reminders.</div>';return;}
   c.innerHTML=ac.slice(0,3).map(function(r){
     return '<div class="rem-prev-item">'
       +'<div class="rem-time-badge">'+r.t+'</div>'
@@ -3042,7 +3042,7 @@ function rmRem(i){ D.rems.splice(i,1); localStorage.setItem('fl_r',JSON.stringif
 function tglRem(i,v){ D.rems[i].on=v; localStorage.setItem('fl_r',JSON.stringify(D.rems)); scheduleCloudSave(); scheduleAllNativeDailyReminders(); }
 function checkRems(){
   // On native, scheduleAllNativeDailyReminders() already covers this exact
-  // minute via an OS alarm â€” firing here too would double it up whenever
+  // minute via an OS alarm — firing here too would double it up whenever
   // the app happens to be open right at the reminder time. Native alarms
   // alone are the single source of truth there (same fix as session
   // check-ins). This JS path is web-only now.
@@ -3053,12 +3053,12 @@ function checkRems(){
     if(r.on&&r.t===cur&&r._lastHit!==stamp){
       r._lastHit=stamp;
       localStorage.setItem('fl_r',JSON.stringify(D.rems));
-      notifyApp('Foc Lock â€“ Study Reminder',r.l,{tag:'reminder-'+r.t,requireInteraction:true});
+      notifyApp('Foc Lock – Study Reminder',r.l,{tag:'reminder-'+r.t,requireInteraction:true});
     }
   });
 }
 
-// ===== CALCULATOR (Foc Calc v3 â€” scientific, multi-instance) =====
+// ===== CALCULATOR (Foc Calc v3 — scientific, multi-instance) =====
 var FC = {}; // per-instance state, keyed by prefix ('st' studio tab, 'sc' session modal)
 function fcState(p){
   if(!FC[p]) FC[p] = { expr:'', cur:0, mode:'normal', ans:0, mem:0, fresh:false };
@@ -3173,12 +3173,12 @@ function fcRender(p){
 function fcEsc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function fcFmt(n){
-  if(!isFinite(n)) return n>0?'âˆž':'-âˆž';
+  if(!isFinite(n)) return n>0?'∞':'-∞';
   if(Object.is(n,-0)) n=0;
   var r=parseFloat(n.toPrecision(10));
   if(r===0) return '0';
   if(Math.abs(r)>=1e10 || (Math.abs(r)<1e-4 && r!==0)){
-    return r.toExponential(6).replace(/\.?0+(e)/,'$1').replace('e+','Ã—10^').replace('e-','Ã—10^-').replace('e','Ã—10^');
+    return r.toExponential(6).replace(/\.?0+(e)/,'$1').replace('e+','×10^').replace('e-','×10^-').replace('e','×10^');
   }
   return String(r);
 }
@@ -3187,11 +3187,11 @@ function fcCalc(p, raw){
   var S=fcState(p);
   var s=raw;
   s=s.replace(/%/g,'/100');
-  s=s.replace(/Ã—10\^-(\d+\.?\d*)/g,'*1e-$1');
-  s=s.replace(/Ã—10\^(\d+\.?\d*)/g,'*1e$1');
-  s=s.replace(/Ã—/g,'*').replace(/Ã·/g,'/').replace(/âˆ’/g,'-');
+  s=s.replace(/×10\^-(\d+\.?\d*)/g,'*1e-$1');
+  s=s.replace(/×10\^(\d+\.?\d*)/g,'*1e$1');
+  s=s.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-');
   s=s.replace(/\^/g,'**');
-  s=s.replace(/Â²/g,'**2').replace(/Â³/g,'**3');
+  s=s.replace(/²/g,'**2').replace(/³/g,'**3');
   s=s.replace(/\bAns\b/g, String(S.ans));
   var op=(s.match(/\(/g)||[]).length, cl=(s.match(/\)/g)||[]).length;
   if(op>cl) s+=')'.repeat(op-cl);
@@ -3203,12 +3203,12 @@ function fcCalc(p, raw){
     sqrt:function(x){return Math.sqrt(x);}, abs:function(x){return Math.abs(x);},
     exp:function(x){return Math.exp(x);},
     factorial:function(n){var r=1;for(var i=2;i<=Math.round(n);i++)r*=i;return r;},
-    Ï€:Math.PI, e:Math.E,
-    Î£:0, Î³:0, i:0, Î¸:0, S:0, T:0,
+    π:Math.PI, e:Math.E,
+    Σ:0, γ:0, i:0, θ:0, S:0, T:0,
     nCr:function(n,r){var top=1,bot=1;r=Math.min(r,n-r);for(var i=0;i<r;i++){top*=(n-i);bot*=(i+1);}return top/bot;},
     nPr:function(n,r){var pr=1;for(var i=0;i<r;i++)pr*=(n-i);return pr;}
   };
-  s=s.replace(/âˆš\(/g,'sqrt(').replace(/âˆ›\(/g,'Math.cbrt(');
+  s=s.replace(/√\(/g,'sqrt(').replace(/∛\(/g,'Math.cbrt(');
   var keys=Object.keys(scope), vals=keys.map(function(k){return scope[k];});
   s=s.replace(/10\*\*\(/g,'(10**(');
   return new Function(...keys,'Math',"\"use strict\";return(" + s + ")")(...vals, Math);
@@ -3237,7 +3237,7 @@ document.addEventListener('keydown', function(kev){
   var tag=(kev.target||{}).tagName;
   var inInput=(tag==='INPUT'||tag==='TEXTAREA');
 
-  /* â”€â”€ ESCAPE: close anything open, in priority order â”€â”€ */
+  /* ── ESCAPE: close anything open, in priority order ── */
   if(k==='Escape'){
     var fs=document.getElementById('foco-sidebar');
     if(fs&&fs.classList.contains('open')){focoSidebarClose();kev.preventDefault();return;}
@@ -3256,7 +3256,7 @@ document.addEventListener('keydown', function(kev){
     return;
   }
 
-  /* â”€â”€ ALT shortcuts (nav + actions) â”€â”€ */
+  /* ── ALT shortcuts (nav + actions) ── */
   if(kev.altKey&&!kev.shiftKey&&!kev.ctrlKey&&!kev.metaKey){
     var navMap={'1':'home','2':'progress','3':'rewards','4':'sounds','5':'more'};
     if(navMap[k]){kev.preventDefault();goScr(navMap[k],document.querySelector('.ni[onclick*=\''+navMap[k]+'\']'));return;}
@@ -3267,7 +3267,7 @@ document.addEventListener('keydown', function(kev){
     return;
   }
 
-  /* â”€â”€ Plain Left/Right arrows: switch between main tabs (desktop) â”€â”€ */
+  /* ── Plain Left/Right arrows: switch between main tabs (desktop) ── */
   if((k==='ArrowLeft'||k==='ArrowRight')&&!inInput&&!kev.altKey&&!kev.ctrlKey&&!kev.metaKey&&!kev.shiftKey){
     if(focoNavSwipeBlocked())return;
     kev.preventDefault();
@@ -3275,17 +3275,17 @@ document.addEventListener('keydown', function(kev){
     return;
   }
 
-  /* â”€â”€ / focus Foco input on Studio tab â”€â”€ */
+  /* ── / focus Foco input on Studio tab ── */
   if(k==='/'&&!inInput&&!kev.altKey&&!kev.ctrlKey&&!kev.metaKey){
     var sa=document.getElementById('scr-sounds')&&document.getElementById('scr-sounds').classList.contains('active');
     var fa=document.getElementById('studio-foco')&&document.getElementById('studio-foco').classList.contains('active');
     if(sa&&fa){kev.preventDefault();var fi=document.getElementById('foco-inp');if(fi){fi.focus();fi.select();}return;}
   }
 
-  /* â”€â”€ Shift+? show shortcuts â”€â”€ */
+  /* ── Shift+? show shortcuts ── */
   if(k==='?'&&!inInput){kev.preventDefault();showKbShortcuts();return;}
 
-  /* â”€â”€ Calculator keys â”€â”€ */
+  /* ── Calculator keys ── */
   var pCalc=isCalcVisible();
   if(!pCalc) return;
   if(document.getElementById('mgate').classList.contains('open')) return;
@@ -3293,9 +3293,9 @@ document.addEventListener('keydown', function(kev){
   if(k>='0'&&k<='9'){kev.preventDefault();fcP(pCalc,k);return;}
   if(k==='.'){kev.preventDefault();fcP(pCalc,'.');return;}
   if(k==='+'){kev.preventDefault();fcP(pCalc,'+');return;}
-  if(k==='-'){kev.preventDefault();fcP(pCalc,'âˆ’');return;}
-  if(k==='*'){kev.preventDefault();fcP(pCalc,'Ã—');return;}
-  if(k==='/'){kev.preventDefault();fcP(pCalc,'Ã·');return;}
+  if(k==='-'){kev.preventDefault();fcP(pCalc,'−');return;}
+  if(k==='*'){kev.preventDefault();fcP(pCalc,'×');return;}
+  if(k==='/'){kev.preventDefault();fcP(pCalc,'÷');return;}
   if(k==='('||k==='['||k==='{'){kev.preventDefault();fcP(pCalc,'(');return;}
   if(k===')'||k===']'||k==='}'){kev.preventDefault();fcP(pCalc,')');return;}
   if(k==='Enter'||k==='='){kev.preventDefault();fcEQ(pCalc);return;}
@@ -3319,16 +3319,16 @@ function showKbShortcuts(){
     +'<div class="mtitle">Keyboard Shortcuts</div>'
     +'<div style="display:flex;flex-direction:column;gap:0;margin-top:8px;">'
     +kbRow('Esc','Close any popup or modal')
-    +kbRow('Alt + 1â€“5','Switch nav tabs (Home/Progress/Foc Space/Rewards/More)')
+    +kbRow('Alt + 1–5','Switch nav tabs (Home/Progress/Foc Space/Rewards/More)')
     +kbRow('Alt + N','Start new study session')
     +kbRow('Alt + F','Toggle fullscreen during session')
     +kbRow('Alt + M','Minimize session to mini player')
     +kbRow('Alt + H','Open Foco chat history')
     +kbRow('/','Focus Foco input (on Studio tab)')
     +kbRow('Shift + ?','Show this shortcuts panel')
-    +kbRow('0â€“9 + + âˆ’ Ã— Ã· ( )','Calculator input (when calc visible)')
+    +kbRow('0–9 + + − × ÷ ( )','Calculator input (when calc visible)')
     +kbRow('Enter','= result in calc / Send in Foco')
-    +kbRow('â† / â†’','Move calculator cursor')
+    +kbRow('← / →','Move calculator cursor')
     +kbRow('Backspace','Delete last calculator character')
     +kbRow('Shift+Enter','New line in Foco message')
     +'</div></div>';
@@ -3366,7 +3366,7 @@ var TIPS=[
 function getTip(){ return TIPS[new Date().getDate()%TIPS.length]; }
 function getRoutine(){
   var h=new Date().getHours();
-  if(h<10)return'Morning (now): Your brain is freshest. Tackle hardest subjects first â€” Math, Science. Use 25-minute sessions with 5-minute breaks.';
+  if(h<10)return'Morning (now): Your brain is freshest. Tackle hardest subjects first — Math, Science. Use 25-minute sessions with 5-minute breaks.';
   if(h<14)return'Late morning (now): Great for reading and memorization. Work on English, History, or theory-heavy subjects.';
   if(h<18)return'Afternoon (now): Energy can dip. Use ambient sounds to maintain focus. Ideal for practice problems and review.';
   return'Evening (now): Best for light revision and consolidation. Flashcards, summaries, and reviewing earlier notes work well now.';
@@ -3398,7 +3398,7 @@ var FOCO_RECOG = null;
    - automatic image blocks
 ========================================================= */
 
-var FOCO_SYS = `You are Foco, a highly capable and friendly AI assistant built into Foc Lock â€” a student productivity and focus tracking app.
+var FOCO_SYS = `You are Foco, a highly capable and friendly AI assistant built into Foc Lock — a student productivity and focus tracking app.
 
 You can help with absolutely anything: academics, coding, creative writing, analysis, math, science, history, philosophy, entertainment, life advice, jokes, motivation, study planning, and more.
 
@@ -3572,11 +3572,11 @@ function buildFocoSys(){
   }).join('\n') || '- No note subjects yet';
 
   var recentSessions = stats.recentSessions.length
-    ? stats.recentSessions.map(function(x){ return '- ' + x.subj + ' Â· ' + x.minutes + ' min Â· ' + x.date; }).join('\n')
+    ? stats.recentSessions.map(function(x){ return '- ' + x.subj + ' · ' + x.minutes + ' min · ' + x.date; }).join('\n')
     : '- No recent sessions yet';
 
   var recentNotes = stats.recentNotes.length
-    ? stats.recentNotes.map(function(x){ return '- ' + x.title + ' Â· ' + x.subj + ' Â· ' + x.date + (x.sessionMeta ? ' Â· ' + x.sessionMeta : ''); }).join('\n')
+    ? stats.recentNotes.map(function(x){ return '- ' + x.title + ' · ' + x.subj + ' · ' + x.date + (x.sessionMeta ? ' · ' + x.sessionMeta : ''); }).join('\n')
     : '- No recent notes yet';
 
   return FOCO_SYS + `
@@ -3655,7 +3655,7 @@ Include:
 If important details are missing, make one sensible assumption and mention it briefly.
 
 === IMAGE BEHAVIOR ===
-Only generate an image when it is genuinely necessary â€” meaning the answer is hard to understand in plain text alone (a diagram, chart, timeline, flowchart, map, labeled sketch, infographic, or comparison visual would clearly add value the words can't). Do not generate an image for simple explanations, definitions, or answers that read fine as plain text.
+Only generate an image when it is genuinely necessary — meaning the answer is hard to understand in plain text alone (a diagram, chart, timeline, flowchart, map, labeled sketch, infographic, or comparison visual would clearly add value the words can't). Do not generate an image for simple explanations, definitions, or answers that read fine as plain text.
 
 If the user explicitly asks for an image, diagram, chart, map, flowchart, infographic, or visual, always include an image block.
 
@@ -3744,7 +3744,7 @@ function focoMarkProviderCooldown(provider, err){
 
 // Single call into the Supabase Edge Function. The function itself decides
 // which upstream provider (Gemini key 1/2, or Groq) to use and holds the
-// actual API keys as encrypted secrets â€” the client never sees them.
+// actual API keys as encrypted secrets — the client never sees them.
 async function focoCallEdge(providerType, systemText, hist, maxTokens){
   var r = await fetch(FOCO_EDGE_URL, {
     method:'POST',
@@ -3826,7 +3826,7 @@ function focoFriendlyApiError(err, scope){
       : 'Foco is busy right now. Please try again later.';
   }
 
-  if(raw.length > 160) return raw.slice(0,160) + 'â€¦';
+  if(raw.length > 160) return raw.slice(0,160) + '…';
   return raw;
 }
 
@@ -3904,7 +3904,7 @@ async function focoSend(){
     try{ focoHistSave(); }catch(e){ console.error('Failed to save chat history:', e); }
   }catch(err){
     focoRmTyping(tid);
-    focoAddMsg('bot', 'âš ï¸ ' + focoFriendlyApiError(err, 'main'));
+    focoAddMsg('bot', '⚠️ ' + focoFriendlyApiError(err, 'main'));
   }
 
   sb.disabled = false;
@@ -3966,7 +3966,7 @@ function focoAddMsg(role, text, imgSrc, atts){
     var spkBtn = document.createElement('button');
     spkBtn.className = 'foco-speak-btn';
     spkBtn.title = 'Listen';
-    spkBtn.textContent = 'ðŸ”Š';
+    spkBtn.textContent = '🔊';
     spkBtn.onclick = function(){ toggleMsgSpeak(spkBtn, text); };
     var tsr = document.createElement('div');
     tsr.style.cssText = 'display:flex;align-items:center;gap:4px;';
@@ -4074,14 +4074,14 @@ function focoRenderAtts(){
       im.src = 'data:' + att.mimeType + ';base64,' + att.data;
       chip.appendChild(im);
     } else {
-      chip.innerHTML = '<span style="font-size:13px;">ðŸ“„</span>';
+      chip.innerHTML = '<span style="font-size:13px;">📄</span>';
     }
     var nm = document.createElement('span');
     nm.textContent = att.name.length > 18 ? att.name.slice(0,16) + '..' : att.name;
     chip.appendChild(nm);
     var xb = document.createElement('button');
     xb.className = 'xc';
-    xb.textContent = 'Ã—';
+    xb.textContent = '×';
     xb.onclick = (function(idx){ return function(){ FOCO_ATTS.splice(idx,1); focoRenderAtts(); }; })(i);
     chip.appendChild(xb);
     bar.appendChild(chip);
@@ -4089,7 +4089,7 @@ function focoRenderAtts(){
 }
 
 /* Voice Input */
-/* Android's WebView doesn't implement the Web Speech API â€” window.SpeechRecognition
+/* Android's WebView doesn't implement the Web Speech API — window.SpeechRecognition
    is simply undefined there, unlike a real Chrome browser tab. So on native we
    route through @capacitor-community/speech-recognition, which talks to
    Android's own SpeechRecognizer instead. Web keeps using the browser API. */
@@ -4172,17 +4172,17 @@ function focoVoice(){
   FOCO_RECOG.start();
 }
 
-/* Text-to-Speech (per-message "Listen" button only â€” the toolbar toggle was removed) */
+/* Text-to-Speech (per-message "Listen" button only — the toolbar toggle was removed) */
 var SPEAK_ACTIVE_BTN = null;
 function resetSpeakBtn(btn){
   if(!btn) return;
-  btn.textContent = 'ðŸ”Š';
+  btn.textContent = '🔊';
   btn.title = 'Listen';
 }
 function toggleMsgSpeak(btn, text){
   if(!window.speechSynthesis) return;
   if(SPEAK_ACTIVE_BTN === btn){
-    // Already speaking this exact message â€” tapping again stops it.
+    // Already speaking this exact message — tapping again stops it.
     window.speechSynthesis.cancel();
     resetSpeakBtn(btn);
     SPEAK_ACTIVE_BTN = null;
@@ -4199,7 +4199,7 @@ function toggleMsgSpeak(btn, text){
     if(SPEAK_ACTIVE_BTN === btn) SPEAK_ACTIVE_BTN = null;
     resetSpeakBtn(btn);
   };
-  btn.textContent = 'â¹';
+  btn.textContent = '⏹';
   btn.title = 'Stop';
   SPEAK_ACTIVE_BTN = btn;
   window.speechSynthesis.speak(utt);
@@ -4222,7 +4222,7 @@ async function focoImgGen(){
   if(!prompt){ toast('Type an image prompt first, then tap Image.'); return; }
   inp.value = '';
   focoGrow(inp);
-  focoAddMsg('user', 'ðŸŽ¨ Generate: ' + prompt);
+  focoAddMsg('user', '🎨 Generate: ' + prompt);
   var tid = 'ft' + Date.now();
   focoTyping(tid);
   try{
@@ -4232,7 +4232,7 @@ async function focoImgGen(){
     try{ focoHistSave(); }catch(e){ console.error('Failed to save chat history:', e); }
   }catch(err){
     focoRmTyping(tid);
-    focoAddMsg('bot', 'âš ï¸ ' + focoFriendlyApiError(err, 'main'));
+    focoAddMsg('bot', '⚠️ ' + focoFriendlyApiError(err, 'main'));
   }
 }
 
@@ -4365,13 +4365,13 @@ function focoInitSession(){
         '<img class="foco-empty-av" src="foco.png" alt="Foco">' +
         '<div class="foco-empty-glow"></div>' +
       '</div>' +
-      '<div class="foco-empty-name">Hi, I&#39;m Foco ðŸ‘‹</div>' +
-      '<div class="foco-empty-sub">Your AI assistant â€” ask anything.<br>Files, images, voice &amp; automatic visuals are ready.</div>' +
+      '<div class="foco-empty-name">Hi, I&#39;m Foco 👋</div>' +
+      '<div class="foco-empty-sub">Your AI assistant — ask anything.<br>Files, images, voice &amp; automatic visuals are ready.</div>' +
       '<div class="foco-sugs">' +
-        '<button class="foco-sug" onclick="focoQuick(\'How do I stay focused while studying?\')">ðŸ’¡ How do I stay focused?</button>' +
-        '<button class="foco-sug" onclick="focoQuick(\'Make me a 3-hour study schedule\')">ðŸ“… Study schedule</button>' +
-        '<button class="foco-sug" onclick="focoQuick(\'Write a short poem about space\')">âœï¸ Write me a poem</button>' +
-        '<button class="foco-sug" onclick="focoQuick(\'What can you do?\')">ðŸ¤– What can you do?</button>' +
+        '<button class="foco-sug" onclick="focoQuick(\'How do I stay focused while studying?\')">💡 How do I stay focused?</button>' +
+        '<button class="foco-sug" onclick="focoQuick(\'Make me a 3-hour study schedule\')">📅 Study schedule</button>' +
+        '<button class="foco-sug" onclick="focoQuick(\'Write a short poem about space\')">✍️ Write me a poem</button>' +
+        '<button class="foco-sug" onclick="focoQuick(\'What can you do?\')">🤖 What can you do?</button>' +
       '</div>';
     wrap.appendChild(_e);
   }
@@ -4512,7 +4512,7 @@ async function sfocoSend(){
     sfocoSaveToHistory();
   }catch(err){
     sfocoRmTyping(tid);
-    sfocoAddMsg('bot', 'âš ï¸ ' + focoFriendlyApiError(err, 'session'));
+    sfocoAddMsg('bot', '⚠️ ' + focoFriendlyApiError(err, 'session'));
   }
 
   sb.disabled = false;
@@ -4570,7 +4570,7 @@ function sfocoAddMsg(role, text, atts, imgSrc){
     var spkBtn = document.createElement('button');
     spkBtn.className = 'sfoco-speak-btn';
     spkBtn.title = 'Listen';
-    spkBtn.textContent = 'ðŸ”Š';
+    spkBtn.textContent = '🔊';
     spkBtn.onclick = function(){ toggleMsgSpeak(spkBtn, text); };
     var tsr = document.createElement('div');
     tsr.style.cssText = 'display:flex;align-items:center;gap:4px;';
@@ -4650,14 +4650,14 @@ function sfocoRenderAtts(){
       im.src = 'data:' + att.mimeType + ';base64,' + att.data;
       chip.appendChild(im);
     } else {
-      chip.innerHTML = '<span style="font-size:12px;">ðŸ“„</span>';
+      chip.innerHTML = '<span style="font-size:12px;">📄</span>';
     }
     var nm = document.createElement('span');
     nm.textContent = att.name.length > 16 ? att.name.slice(0,14) + '..' : att.name;
     chip.appendChild(nm);
     var xb = document.createElement('button');
     xb.className = 'xc';
-    xb.textContent = 'Ã—';
+    xb.textContent = '×';
     xb.onclick = (function(idx){ return function(){ SFOCO_ATTS.splice(idx,1); sfocoRenderAtts(); }; })(i);
     chip.appendChild(xb);
     bar.appendChild(chip);
@@ -4743,7 +4743,7 @@ function sfocoVoice(){
 }
 
 /* TTS */
-/* Text-to-Speech (per-message "Listen" button only â€” the toolbar toggle was removed) */
+/* Text-to-Speech (per-message "Listen" button only — the toolbar toggle was removed) */
 function sfocoSpeak(text){
   if(!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
@@ -4760,7 +4760,7 @@ async function sfocoImgGen(){
   if(!prompt){ toast('Type an image prompt first.'); return; }
   inp.value = '';
   sfocoGrow(inp);
-  sfocoAddMsg('user', 'ðŸŽ¨ Generate: ' + prompt);
+  sfocoAddMsg('user', '🎨 Generate: ' + prompt);
   var tid = 'sft' + Date.now();
   sfocoTyping(tid);
   try{
@@ -4771,19 +4771,19 @@ async function sfocoImgGen(){
     sfocoSaveToHistory();
   }catch(err){
     sfocoRmTyping(tid);
-    sfocoAddMsg('bot', 'âš ï¸ ' + focoFriendlyApiError(err, 'session'));
+    sfocoAddMsg('bot', '⚠️ ' + focoFriendlyApiError(err, 'session'));
   }
 }
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════════════════
 // NOTES FEATURE
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════════════════
 var NOTES = [];
 var NOTES_FILTER = 'all';
 var CURR_NOTE_ID = null;
 var NED_IMGS = []; // {data:base64, mime:string} for current editor
 var SNOTE_IMGS = []; // for session note popup
 
-/* â”€â”€ Load / Save â”€â”€ */
+/* ── Load / Save ── */
 function loadNotes(){
   NOTES = [];
   if(!(SB && AUTH && AUTH.user)) { renderNotes(); return Promise.resolve(); }
@@ -4809,7 +4809,7 @@ function saveNoteData(){
   .catch(function(err){ console.error('Notes save failed:',err); throw err; });
 }
 
-/* â”€â”€ Render Notes List â”€â”€ */
+/* ── Render Notes List ── */
 function renderNotes(){
   var list = document.getElementById('notes-list');
   if(!list || !document.getElementById('studio-notes')) return;
@@ -4884,7 +4884,7 @@ function renderNotes(){
   });
 }
 
-/* â”€â”€ Note Editor â”€â”€ */
+/* ── Note Editor ── */
 function openNoteEditor(noteId){
   CURR_NOTE_ID = noteId;
   NED_IMGS = [];
@@ -4982,7 +4982,7 @@ function deleteCurrentNote(){
   });
 }
 
-/* Safe file pick â€” input lives outside overlay so always in DOM */
+/* Safe file pick — input lives outside overlay so always in DOM */
 function nedTriggerFilePick(){
   var fi = document.getElementById('ned-file-in');
   if(fi) fi.click(); else toast('File picker not available');
@@ -4999,7 +4999,7 @@ function nedFilterSubjDrop(){
 }
 
 /* Shared: compress any image File/Blob down to a reasonable size before
-   storing as base64 in Supabase JSONB â€” prevents large photos from
+   storing as base64 in Supabase JSONB — prevents large photos from
    silently failing to save due to oversized payloads. */
 /* Smart adaptive image compression:
    - Small images are barely touched (kept near-original quality)
@@ -5010,7 +5010,7 @@ function compressImageForNote(file){
   return new Promise(function(resolve, reject){
     if(!file || !file.type || !file.type.startsWith('image/')){ reject(new Error('Not an image')); return; }
 
-    /* If it's already small, skip processing entirely â€” no quality loss */
+    /* If it's already small, skip processing entirely — no quality loss */
     var SKIP_THRESHOLD = 350 * 1024; // 350KB
     if(file.size <= SKIP_THRESHOLD){
       var fr = new FileReader();
@@ -5046,7 +5046,7 @@ function compressImageForNote(file){
         var quality = 0.9;
         var dataUrl = canvas.toDataURL('image/jpeg', quality);
 
-        /* Step quality down only as far as needed to hit the target â€”
+        /* Step quality down only as far as needed to hit the target —
            stops early once under target, so we don't over-compress. */
         var tries = 0;
         while(dataUrl.length * 0.75 > TARGET_BYTES && quality > 0.4 && tries < 7){
@@ -5089,7 +5089,7 @@ function getImagesFromPaste(e){
   return files;
 }
 
-/* Wire clipboard-paste image support â€” attach once on first use */
+/* Wire clipboard-paste image support — attach once on first use */
 var _PASTE_WIRED = false;
 function wirePasteImageSupport(){
   if(_PASTE_WIRED) return;
@@ -5147,7 +5147,7 @@ function nedRenderImgs(){
   bar.appendChild(addBtn);
 }
 
-/* â”€â”€ Session Quick Note â”€â”€ */
+/* ── Session Quick Note ── */
 function openSessNote(){
   SNOTE_IMGS = [];
   var t = document.getElementById('snote-title');
@@ -5219,7 +5219,7 @@ function snoteRenderImgs(){
 
 
 
-/* â”€â”€ IMAGE LIGHTBOX â”€â”€ */
+/* ── IMAGE LIGHTBOX ── */
 var LBX_IMGS = [];
 var LBX_IDX = 0;
 
@@ -5269,7 +5269,7 @@ function lbxRender(){
   }
 }
 
-/* â”€â”€ SUBJECT COMBOBOX â”€â”€ */
+/* ── SUBJECT COMBOBOX ── */
 var NED_SUBJ_FOCUS = false;
 function nedSubjOpen(){
   NED_SUBJ_FOCUS=true;
@@ -5318,7 +5318,7 @@ function nedSubjKey(e){
   }
 }
 
-/* â”€â”€ PAUSE COUNTDOWN â”€â”€ */
+/* ── PAUSE COUNTDOWN ── */
 var PAUSE_START_TS = 0;
 var PAUSE_CD_TMR = null;
 
@@ -5331,12 +5331,12 @@ function startPauseCountdown(){
     var st = document.getElementById('s-status');
     if(st){
       st.style.color = 'var(--warn)';
-      st.textContent = 'Paused Â· ' + m + ':' + (s < 10 ? '0' : '') + s;
+      st.textContent = 'Paused · ' + m + ':' + (s < 10 ? '0' : '') + s;
     }
   }, 1000);
   /* Fire immediately */
   var st = document.getElementById('s-status');
-  if(st){ st.style.color='var(--warn)'; st.textContent='Paused Â· 0:00'; }
+  if(st){ st.style.color='var(--warn)'; st.textContent='Paused · 0:00'; }
 }
 
 function stopPauseCountdown(){
