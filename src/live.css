@@ -1342,7 +1342,7 @@ body{background:var(--bg);}
   display:flex;gap:4px;
   background:rgba(0,0,0,.18);
   border:1px solid var(--border);
-  border-radius:16px;padding:5px;
+  padding:5px;
 }
 .studio-tab{
   flex:1;display:flex;align-items:center;justify-content:center;
