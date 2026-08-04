@@ -882,7 +882,7 @@ body{background:var(--bg);}
     font-size:clamp(52px,16vw,68px);letter-spacing:-2.5px;
   }
   #sess.sess-immersive .t-inner-elapsed{font-size:13px;}
-  #sess.sess-immersive .ssubj{font-size:15px;}
+  #sess.sess-immersive .ssubj{font-size:18px;}
   #sess.sess-immersive .sess-xp-live{font-size:14px;}
   #sess.sess-immersive .sess-status-txt{font-size:12.5px;}
   #sess.sess-immersive .sctrl{margin-top:22px;gap:10px;padding-bottom:env(safe-area-inset-bottom,0px);}
@@ -1043,7 +1043,7 @@ body{background:var(--bg);}
   transition:color .2s ease;
 }
 .back-btn:hover{color:var(--accent2);}
-.page-title{font-size:21px;font-weight:900;margin-bottom:14px;letter-spacing:-.3px;}
+/*.page-title{font-size:21px;font-weight:900;margin-bottom:14px;letter-spacing:-.3px;}*/
 
 /* REMINDERS */
 .ritem{
@@ -1114,6 +1114,7 @@ body{background:var(--bg);}
   border-radius:999px;background:var(--bg3);border:1px solid var(--border);
   font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;
 }
+
 .auth-card-actions{display:flex;gap:8px;margin-top:14px;justify-content:right;}
 /*.auth-card-actions .small-btn{flex:1;}*/
 .auth-card-actions .btn{width: auto;min-width: 100px;padding: 11px 14px;}
@@ -1329,8 +1330,8 @@ body{background:var(--bg);}
   display:flex !important;
   flex-direction:column;
 }
-/* Hide page title — tab bar is enough */
-#scr-sounds .page-title{display:none !important;}
+/* Hide page title — tab bar is enough 
+#scr-sounds .page-title{display:none !important;}*/
 
 /* Tab bar */
 #scr-sounds .studio-tabs{
@@ -1806,6 +1807,15 @@ body{background:var(--bg);}
 .sfoco-bubble p{margin:0 0 4px;}.sfoco-bubble p:last-child{margin:0;}
 .sfoco-bubble ul{padding-left:16px;margin:3px 0;}
 .sfoco-bubble li{margin:2px 0;}
+.sfoco-col{display:flex;flex-direction:column;gap:3px;max-width:78%;}
+.sfoco-col.user{align-items:flex-end;}
+.sfoco-ts{font-size:9.5px;color:var(--text3);font-weight:600;padding:0 2px;}
+.sfoco-speak-btn{
+  background:none;border:none;color:var(--text3);
+  cursor:pointer;font-size:11px;padding:1px 2px;line-height:1;
+  transition:color .15s;
+}
+.sfoco-speak-btn:hover{color:var(--accent2);}
 
 /* Typing */
 .sfoco-typing{display:flex;gap:4px;align-items:center;padding:8px 11px;}
