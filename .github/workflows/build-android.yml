@@ -218,15 +218,19 @@ jobs:
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                       NotificationManager manager = nm();
                       if (manager != null) {
-                          createChannel(manager, CHANNEL_SESSION, "Session Alerts", "Session start/pause/check-in and completion alerts");
-                          createChannel(manager, CHANNEL_REMINDERS, "Study Reminders", "Daily study reminder alerts");
+                          createBypassChannelIfMissing(manager, CHANNEL_SESSION, "Session Alerts", "Session start/pause/check-in and completion alerts");
+                          createBypassChannelIfMissing(manager, CHANNEL_REMINDERS, "Study Reminders", "Daily study reminder alerts");
                       }
                   }
                   call.resolve();
               }
 
-              private void createChannel(NotificationManager manager, String id, String name, String description) {
-                  if (manager.getNotificationChannel(id) != null) return;
+              private void createBypassChannelIfMissing(NotificationManager manager, String id, String name, String description) {
+                  NotificationChannel existing = manager.getNotificationChannel(id);
+                  if (existing != null) {
+                      if (existing.canBypassDnd()) return;
+                      manager.deleteNotificationChannel(id);
+                  }
                   NotificationChannel channel = new NotificationChannel(id, name, NotificationManager.IMPORTANCE_HIGH);
                   channel.setDescription(description);
                   channel.enableVibration(true);
