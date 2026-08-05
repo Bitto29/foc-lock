@@ -248,12 +248,13 @@ jobs:
               private void createBypassChannelIfMissing(NotificationManager manager, String id, String name, String description) {
                   NotificationChannel existing = manager.getNotificationChannel(id);
                   if (existing != null) {
-                      if (existing.canBypassDnd()) return;
+                      if (existing.canBypassDnd() && existing.shouldVibrate()) return;
                       manager.deleteNotificationChannel(id);
                   }
                   NotificationChannel channel = new NotificationChannel(id, name, NotificationManager.IMPORTANCE_HIGH);
                   channel.setDescription(description);
                   channel.enableVibration(true);
+                  channel.setVibrationPattern(new long[]{0, 300, 200, 300});
                   channel.enableLights(true);
                   channel.setBypassDnd(true);
                   manager.createNotificationChannel(channel);
