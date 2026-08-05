@@ -1248,11 +1248,25 @@ async function armNativeAutoPip(on){
    exactly that. */
 /* Forces the browser to actually repaint the mini player instead of
    leaving a stale composited layer on screen — Android WebViews can leave
-   fixed-position elements looking "broken" (overlapping/blended with page
-   content underneath) after the screen sleeps and wakes, until something
-   triggers a real reflow. Toggling display off/on synchronously forces
-   exactly that. */
+   fixed-position/full-screen elements looking "broken" (overlapping/
+   blended with page content underneath) after the screen sleeps and
+   wakes, until something triggers a real reflow. Toggling display off/on
+   synchronously forces exactly that.
+   Covers BOTH possible visible states: the in-app floating widget
+   (#sess-pip) and, separately, the real system PiP view (#native-pip-view)
+   — these are two different elements and only one is ever showing at a
+   time, so both need their own repaint check rather than assuming it's
+   always the in-app one. */
 function repaintPipWidget(){
+  if(document.body.classList.contains('native-pip-active')){
+    var npv = document.getElementById('native-pip-view');
+    if(npv){
+      npv.style.display = 'none';
+      void npv.offsetHeight; // force synchronous reflow
+      npv.style.display = '';
+    }
+    return;
+  }
   var el = document.getElementById('sess-pip');
   if(!el || !el.classList.contains('show')) return;
   el.style.display = 'none';
