@@ -756,7 +756,7 @@ body{background:var(--bg);}
 .smusic{
   width:calc(100% - 32px);margin:0 16px 16px;padding:14px;
   background:var(--card);border:1px solid var(--border);
-  border-radius:22px;box-shadow:var(--shadow2);
+  border-radius:17px;box-shadow:var(--shadow2);
   display:flex;flex-direction:column;gap:12px;
 }
 .smusic-top{display:flex;align-items:center;justify-content:space-between;gap:10px;}
@@ -882,7 +882,7 @@ body{background:var(--bg);}
     font-size:clamp(52px,16vw,68px);letter-spacing:-2.5px;
   }
   #sess.sess-immersive .t-inner-elapsed{font-size:13px;}
-  #sess.sess-immersive .ssubj{font-size:18px;}
+  #sess.sess-immersive .ssubj{font-size:15px;}
   #sess.sess-immersive .sess-xp-live{font-size:14px;}
   #sess.sess-immersive .sess-status-txt{font-size:12.5px;}
   #sess.sess-immersive .sctrl{margin-top:22px;gap:10px;padding-bottom:env(safe-area-inset-bottom,0px);}
@@ -1342,7 +1342,7 @@ body{background:var(--bg);}
   display:flex;gap:4px;
   background:rgba(0,0,0,.18);
   border:1px solid var(--border);
-  padding:5px;
+  padding:5px;border-radius: 0;
 }
 .studio-tab{
   flex:1;display:flex;align-items:center;justify-content:center;
