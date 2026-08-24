@@ -1545,8 +1545,11 @@ body{background:var(--bg);}
   background:var(--bg3);
   border:1.5px solid var(--border);
   border-radius:16px;
-  padding:11px 14px 11px 40px;
-  font-size:13px;font-family:var(--font);
+  padding-top: 11px;
+  padding-right: 14px;
+  padding-bottom: 11px;
+  padding-left: 40px;
+  margin-bottom: 10px;  font-size:13px;font-family:var(--font);
   color:var(--text);resize:none;outline:none;
   min-height:44px;max-height:110px;
   overflow-y:auto;line-height:1.55;
@@ -1559,6 +1562,7 @@ body{background:var(--bg);}
 }
 #foco-inp::placeholder{color:var(--text3);}
 .foco-plus-btn{
+  bottom: auto;top: 6px;
   position:absolute;left:5px;bottom:5px;
   width:32px;height:32px;flex-shrink:0;border-radius:50%;
   background:transparent;border:none;
