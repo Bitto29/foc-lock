@@ -1965,7 +1965,7 @@ body{background:var(--bg);}
   font-size:22px;line-height:1;
   display:flex;align-items:center;justify-content:center;
   box-shadow:0 2px 8px rgba(59,130,246,.28);
-  transition:all .15s;
+  transition:all .15s;margin-bottom:11px;
 }
 .subj-add-btn:hover{transform:scale(1.06);}
 .subj-add-btn:active{transform:scale(.96);}
