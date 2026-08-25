@@ -1953,10 +1953,10 @@ body{background:var(--bg);}
 }
 .sm-chips-row::-webkit-scrollbar{display:none;}
 .subj-add-row{display:flex;align-items:center;gap:6px;}
-#cust-subj{flex:1;margin-bottom:0;min-width:0;}
+#cust-subj{flex:1;margin-bottom:0;min-width:0;margin-bottom:0 !important;}
 .subj-type-inp{
   flex-shrink:0;max-width:100px;margin-bottom:0;
-  height:42px;font-size:12px;
+  height:42px;font-size:12px;margin-bottom:0 !important;
 }
 .subj-add-btn{
   width:42px;height:42px;border-radius:11px;flex-shrink:0;
@@ -1965,7 +1965,7 @@ body{background:var(--bg);}
   font-size:22px;line-height:1;
   display:flex;align-items:center;justify-content:center;
   box-shadow:0 2px 8px rgba(59,130,246,.28);
-  transition:all .15s;margin-bottom:11px;
+  transition:all .15s;
 }
 .subj-add-btn:hover{transform:scale(1.06);}
 .subj-add-btn:active{transform:scale(.96);}
