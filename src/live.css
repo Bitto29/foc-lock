@@ -1576,7 +1576,7 @@ body{background:var(--bg);}
 .foco-plus-btn.on svg{transform:rotate(45deg);}
 .foco-send{
   width:44px;height:44px;
-  border-radius:14px;
+  border-radius:14px;margin-bottom:10px;
   background:linear-gradient(135deg,#3b82f6,#2563eb);
   border:none;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
