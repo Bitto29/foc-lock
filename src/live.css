@@ -324,7 +324,7 @@ body{background:var(--bg);}
 .sbname{font-size:12px;font-weight:700;width:80px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);}
 .sbbar{flex:1;height:8px;background:var(--bg3);border-radius:999px;overflow:hidden;}
 .sbfill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent3));border-radius:999px;transition:width .5s ease;}
-.sbtime{font-size:11px;color:var(--text2);width:46px;text-align:right;font-weight:600;}
+.sbtime{font-size:11px;color:var(--text2);width:47px;text-align:right;font-weight:600;}
 
 /* HISTORY ITEMS */
 .hist-item{
