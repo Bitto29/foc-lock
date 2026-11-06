@@ -2555,3 +2555,8 @@ select.inp{appearance:none;-webkit-appearance:none;}
 .icon-btn:hover{border-color:var(--border2);color:var(--text);}
 .icon-btn:active{transform:scale(.94);}
 .icon-btn.danger{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.25);color:var(--danger);}
+
+/* Edit session: subject + sub-subject boxes */
+.edit-subj-row{display:grid;grid-template-columns:1fr 1fr 38px;gap:8px;align-items:start;margin-bottom:2px;}
+.edit-subj-row .inp{margin-bottom:8px;min-width:0;}
+.edit-subj-row .icon-btn{width:38px;height:42px;font-size:20px;line-height:1;}
