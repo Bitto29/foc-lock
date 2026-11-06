@@ -5,6 +5,10 @@ var D = {
   ach: JSON.parse(localStorage.getItem('fl_a')||'{}'),
   subj: JSON.parse(localStorage.getItem('fl_sj')||'["Mathematics","Physics","Chemistry","Biology","English","History"]'),
   rems: JSON.parse(localStorage.getItem('fl_r')||'[]'),
+  plan: JSON.parse(localStorage.getItem('fl_plan')||'[]'),
+  exams: JSON.parse(localStorage.getItem('fl_exams')||'[]'),
+  planTs: +localStorage.getItem('fl_plts')||0,
+  planNotif: localStorage.getItem('fl_pln') !== '0',
   goal: +localStorage.getItem('fl_g')||120,
   theme: localStorage.getItem('fl_th')||'dark',
   name: localStorage.getItem('fl_nm')||'',
@@ -111,10 +115,36 @@ var CLOUD_READY = false;
 function uid(){ if(window.crypto&&crypto.randomUUID) return crypto.randomUUID(); return 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2); }
 function safeNum(v,fallback){ v=parseInt(v,10); return isNaN(v)?fallback:v; }
 
+// Two reminders with the same time + label are the same reminder. Duplicates sneak in when an old
+// reminder without an id is merged with its cloud copy, and every duplicate fires its own notification.
+function remKey(r){ return String(r.t||'')+'|'+String(r.l||'').trim().toLowerCase(); }
+function dedupeRems(arr){
+  var seen={}, out=[];
+  (arr||[]).forEach(function(r){
+    var k=remKey(r), i=seen[k];
+    if(i===undefined){ seen[k]=out.length; out.push(r); }
+    else{
+      var keep=out[i];
+      if(r.on&&!keep.on) keep.on=true;
+      if((r._lastHit||'')>(keep._lastHit||'')) keep._lastHit=r._lastHit;
+    }
+  });
+  return out;
+}
+
 function ensureDefaults(){
   if(!Array.isArray(D.sess)) D.sess=[];
   if(!Array.isArray(D.subj)||!D.subj.length) D.subj=['Mathematics','Physics','Chemistry','Biology','English','History'];
   if(!Array.isArray(D.rems)) D.rems=[];
+  if(!Array.isArray(D.plan)) D.plan=[];
+  if(!Array.isArray(D.exams)) D.exams=[];
+  D.planTs=safeNum(D.planTs,0);
+  D.plan=D.plan.filter(function(b){return b&&b.s&&b.e;}).map(function(b){
+    return {id:b.id||uid(),subj:b.subj||'',s:b.s,e:b.e,goal:Math.max(1,safeNum(b.goal,60)),days:Array.isArray(b.days)&&b.days.length?b.days.map(Number).filter(function(d){return d>=0&&d<=6;}):[0,1,2,3,4,5,6],on:true,notif:b.notif===undefined?b.on!==false:b.notif!==false};
+  });
+  D.exams=D.exams.filter(function(x){return x&&x.date;}).map(function(x){
+    return {id:x.id||uid(),name:x.name||'Exam',date:x.date,time:x.time||'09:00'};
+  });
   if(!D.ach||typeof D.ach!=='object') D.ach={};
   if(!D.streak||typeof D.streak!=='object') D.streak={c:0,d:''};
   if(!D.goal) D.goal=120;
@@ -137,6 +167,7 @@ function ensureDefaults(){
   D.rems=D.rems.map(function(r){
     return {id:r.id||uid(),t:r.t||'08:00',l:r.l||'Study Time',on:r.on!==false,_lastHit:r._lastHit||''};
   });
+  D.rems=dedupeRems(D.rems);
 }
 
 function calcXP(){ return D.sess.reduce(function(s,r){ return s+(typeof r.xp==='number'?r.xp:Math.max(0,Math.floor(safeNum(r.dur,0)/60))); },0); }
@@ -148,6 +179,9 @@ function cloneCloudState(){
     ach:D.ach,
     subj:D.subj,
     rems:D.rems,
+    plan:D.plan,
+    exams:D.exams,
+    planTs:D.planTs,
     goal:D.goal,
     theme:D.theme,
     name:D.name,
@@ -166,6 +200,10 @@ function persistLocal(){
   localStorage.setItem('fl_a',JSON.stringify(D.ach));
   localStorage.setItem('fl_sj',JSON.stringify(D.subj));
   localStorage.setItem('fl_r',JSON.stringify(D.rems));
+  localStorage.setItem('fl_plan',JSON.stringify(D.plan));
+  localStorage.setItem('fl_exams',JSON.stringify(D.exams));
+  localStorage.setItem('fl_plts',String(D.planTs||0));
+  localStorage.setItem('fl_pln',D.planNotif===false?'0':'1');
   localStorage.setItem('fl_g',D.goal);
   localStorage.setItem('fl_th',D.theme);
   localStorage.setItem('fl_lk',D.lock?'1':'0');
@@ -220,13 +258,20 @@ function mergeRems(remoteArr,localArr){
       map[k]=r;
     }
   });
-  return Object.keys(map).map(function(k){return map[k];});
+  return dedupeRems(Object.keys(map).map(function(k){return map[k];}));
 }
 function mergeStates(remote){
   remote=remote&&remote.state?remote.state:remote;
   if(!remote||typeof remote!=='object')return;
   D.sess=mergeByKey(remote.sess||[],D.sess||[],function(s){ return s.id||[s.ts||0,s.d||'',s.subj||'',s.dur||0].join('|'); }).sort(function(a,b){ return safeNum(a.ts,0)-safeNum(b.ts,0); });
   D.rems=mergeRems(remote.rems||[],D.rems||[]);
+  // Study plan + exams: whichever side changed last wins as a whole, so deletes on one device stick on the others.
+  if(safeNum(remote.planTs,0)>safeNum(D.planTs,0)){
+    D.plan=Array.isArray(remote.plan)?remote.plan:[];
+    D.exams=Array.isArray(remote.exams)?remote.exams:[];
+    D.planTs=safeNum(remote.planTs,0);
+  }
+  ensureDefaults();
   D.subj=uniqueStrings([].concat(remote.subj||[],D.subj||[]));
   D.ach=Object.assign({},remote.ach||{},D.ach||{});
   D.goal=pickScalar(remote.goal,D.goal,120);
@@ -236,6 +281,7 @@ function mergeStates(remote){
   if(typeof remote.lock==='boolean') D.lock=remote.lock;
   D.xp=calcXP();
   persistLocal();
+  scheduleAllNativeDailyReminders();
 }
 function updateAuthUI(){
   var signed=!!AUTH.user;
@@ -358,11 +404,16 @@ function normalizeRemoteState(raw){
 async function loadCloud(){
   if(!SB||!AUTH.user)return;
   if(!navigator.onLine){ updateCloudStatus('Offline'); refreshDerivedAndUI(); return; }
+  claimLocalDataFor(AUTH.user.id);
   updateCloudStatus('Loading cloud data...');
   try{
     var res=await SB.from('study_tracking_profiles').select('state,updated_at').eq('user_id',AUTH.user.id).maybeSingle();
     if(res&&res.error)throw res.error;
-    if(res&&res.data&&res.data.state){
+    // A brand-new account starts empty, whatever the server pre-filled (a default value or trigger on the table would otherwise leak into every new account).
+    var freshKey=String(AUTH.user.email||'').toLowerCase();
+    var isFresh=!!AUTH.fresh||(freshKey&&localStorage.getItem('fl_fresh')===freshKey);
+    AUTH.fresh=false; if(isFresh) localStorage.removeItem('fl_fresh');
+    if(!isFresh&&res&&res.data&&res.data.state){
       mergeStates(normalizeRemoteState(res.data.state));
     }else{
       persistLocal();
@@ -421,6 +472,27 @@ function updateAllOfflineBadges(){
   setOfflineBadge('sfoco-offline-badge','Foco');
   setOfflineBadge('notes-offline-badge','Notes');
 }
+/* ── Per-account local data ──
+   Everything the app keeps on the device (sessions, reminders, plan, exams, notes cache...) belongs to
+   whichever account last signed in here. Before, signing out left it all behind and the next account
+   that signed in on that device merged it into its own cloud data, so reminders appeared "out of nowhere". */
+var USER_LS_KEYS = ['fl_s','fl_xp','fl_a','fl_sj','fl_r','fl_plan','fl_exams','fl_plts','fl_g','fl_nm','fl_st','fl_cur','fl_hits'];
+var EXPLICIT_SIGNOUT = false;
+function wipeLocalUserData(){
+  USER_LS_KEYS.forEach(function(k){ localStorage.removeItem(k); });
+  Object.keys(localStorage).forEach(function(k){ if(k.indexOf('fl_notes_') === 0) localStorage.removeItem(k); });
+  idbClearAll();
+  D.sess = []; D.xp = 0; D.ach = {}; D.subj = []; D.rems = []; D.plan = []; D.exams = []; D.planTs = 0;
+  D.goal = 120; D.name = ''; D.streak = {c:0, d:''};
+  ensureDefaults(); persistLocal();
+  NOTES = []; NOTES_BASE = []; NOTES_LOAD_SEQ++; FOCO_SESSIONS = [];
+  scheduleAllNativeDailyReminders();
+}
+function claimLocalDataFor(uid){
+  var prev = localStorage.getItem('fl_uid');
+  if(prev && prev !== uid) wipeLocalUserData();   // different account than the one this device holds
+  localStorage.setItem('fl_uid', uid);
+}
 function refreshDerivedAndUI(){
   D.xp=calcXP(); persistLocal(); updateGreeting(); updHome(); renderSubjList(); renderRems(); renderBadges(); renderGoals(); updXP();
   if(PCHART)updChart();
@@ -478,7 +550,13 @@ async function bootSupabase(){
       toast(event==='INITIAL_SESSION'?'Session restored':'Signed in');
     } else {
       updateCloudStatus('Local only');
-      NOTES=[]; FOCO_SESSIONS=[];
+      NOTES=[]; FOCO_SESSIONS=[]; NOTES_BASE=[]; NOTES_LOAD_SEQ++;
+      if(EXPLICIT_SIGNOUT){
+        EXPLICIT_SIGNOUT=false;
+        wipeLocalUserData(); localStorage.removeItem('fl_uid');
+        refreshDerivedAndUI(); refreshPlanUI(); renderRems(); renderSubjList();
+        var gi=document.getElementById('goal-inp'); if(gi) gi.value=D.goal;
+      }
       renderNotes();
       toast('Signed out');
     }
@@ -487,7 +565,7 @@ async function bootSupabase(){
   window.addEventListener('beforeunload', function(){ if(AUTH.user) saveCloud(true); });
   window.addEventListener('pagehide', function(){ if(AUTH.user) saveCloud(true); });
   window.addEventListener('online', function(){
-    if(AUTH.user){ CLOUD_READY=true; updateAuthUI(); queueCloudSave(300); }
+    if(AUTH.user){ CLOUD_READY=true; updateAuthUI(); queueCloudSave(300); syncNotes().then(function(){ renderNotes(); }).catch(function(){}); }
   });
 }
 async function submitAuth(){
@@ -505,6 +583,7 @@ async function submitAuth(){
       var signUp=await SB.auth.signUp({email:email,password:password,options:{data:{full_name:displayName,name:displayName,display_name:displayName}}});
       if(signUp.error)throw signUp.error;
       if(signUp.data&&signUp.data.session){
+        AUTH.fresh=true;
         AUTH.user=signUp.data.session.user;
         AUTH.session=signUp.data.session;
         CLOUD_READY=true;
@@ -514,6 +593,7 @@ async function submitAuth(){
         toast('Account created');
         closeAuth();
       } else {
+        localStorage.setItem('fl_fresh',email.toLowerCase());
         toast('Check your email to finish sign up');
       }
     } else {
@@ -531,7 +611,16 @@ async function submitAuth(){
     showAuthError(e.message||'Authentication failed.');
   }
 }
-async function signOut(){ if(!SB)return; try{ await SB.auth.signOut(); }catch(e){} }
+async function signOut(){
+  if(!SB)return;
+  // Push the latest changes to the cloud first; signing out clears this device, so nothing unsynced may be lost.
+  var okCloud=false, okNotes=false;
+  try{ okCloud=await saveCloud(true); }catch(e){}
+  try{ okNotes=await syncNotes(); }catch(e){}
+  if(!(okCloud&&okNotes) && !confirm('Your latest changes could not be synced. Signing out will remove them from this device. Sign out anyway?')) return;
+  EXPLICIT_SIGNOUT=true;
+  try{ await SB.auth.signOut(); }catch(e){ EXPLICIT_SIGNOUT=false; }
+}
 
 // ===== FORGOT PASSWORD =====
 var FORGOT={ step:1, email:'', cooldownTimer:null, cooldownEnd:0, verified:false };
@@ -672,7 +761,7 @@ function init(){
   ensureDndBypassChannels();
   document.getElementById('goal-inp').value=D.goal;
   document.getElementById('date-disp').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  updHome(); updateGreeting(); renderSubjList(); renderRems(); renderBadges(); renderGoals(); updXP(); renderSettingsToggles();
+  initPlanFeature(); updHome(); updateGreeting(); renderSubjList(); renderRems(); renderBadges(); renderGoals(); updXP(); renderSettingsToggles();
   initChart(); renderLofi(); renderBengaliStations(); updateSessionMusicUI();
   document.getElementById('daily-tip').textContent=getTip();
   document.getElementById('sug-routine').textContent=getRoutine();
@@ -809,6 +898,7 @@ function gSub(id,_skipHistory){
   document.querySelectorAll('#scr-more .subp').forEach(function(s){s.classList.remove('active');});
   var el=document.getElementById(id); if(el)el.classList.add('active');
   if(id==='sub-set') renderSettingsToggles();
+  if(id==='sub-plan') fillPlanSubjects(PLAN_EDIT_ID?(document.getElementById('plan-subj')||{}).value:'');
   var contentElSub=document.getElementById('content');
   if(contentElSub)contentElSub.scrollTop=0;
   if(!_skipHistory){
@@ -939,6 +1029,7 @@ function updHome(){
   var ring=document.getElementById('daily-ring');
   if(ring)ring.style.strokeDashoffset=213.6*(1-p/100);
   renderRemPreview();
+  renderHomePlan(); renderHomeExam();
 }
 
 // ===== START MODAL =====
@@ -1820,47 +1911,105 @@ async function cancelNativeSessionReminders(){
    sure it buzzes even in Do Not Disturb-adjacent "priority" setups. */
 var NATIVE_DAILY_REMINDER_BASE_ID = 9000;
 var NATIVE_DAILY_REMINDER_MAX = 200; // generous headroom for however many reminders the user adds
+var NATIVE_PLAN_NOTIF_BASE_ID = 12000; // Study Plan block-start alarms
+var NATIVE_PLAN_NOTIF_MAX = 400;       // up to 7 days x 57 blocks
 
-/* Schedules D.rems as recurring native OS alarms so they fire even with the
-   app fully closed — checkRems() (JS polling every 60s) only works while
-   the app is open, since Android suspends JS timers in the background.
-   Channel creation for "study-reminders" (with bypassDnd baked in) is
-   handled by ensureDndBypassChannels() — see the note on that function for
-   why it must never be created via LocalNotifications.createChannel()
-   directly. */
-async function scheduleAllNativeDailyReminders(){
-  if(!isNativeApp()) return;
+/* ONE serialized sync for every recurring study alarm (daily reminders + study-plan blocks).
+   Before, this ran un-awaited from addRem / tglRem / rmRem / init / cloud-merge at the same time.
+   Two overlapping runs could cancel and schedule in an interleaved order, and because alarm IDs
+   are positions in the list, a reminder could be left registered under two IDs, so one reminder
+   fired twice. Now only one run executes at a time; calls that arrive meanwhile are merged into
+   one follow-up run that reads the latest data. */
+var _alarmRunning = false, _alarmQueued = false, _alarmPromise = Promise.resolve();
+function scheduleAllNativeDailyReminders(){
+  if(!isNativeApp()) return Promise.resolve();
+  if(_alarmRunning){ _alarmQueued = true; return _alarmPromise; }
+  _alarmRunning = true;
+  _alarmPromise = (async function(){
+    try{
+      do{ _alarmQueued = false; await runNativeAlarmSync(); }
+      while(_alarmQueued);
+    }catch(e){}
+    _alarmRunning = false;
+  })();
+  return _alarmPromise;
+}
+
+async function runNativeAlarmSync(){
+  var LN = window.Capacitor.Plugins.LocalNotifications;
+  if(!LN) return;
+
+  // 1. Clear every alarm we own: the whole ID blocks, plus anything still pending that looks like a
+  //    study reminder (leftovers from older app versions used other IDs and kept firing next to
+  //    the new ones). Session check-ins (IDs 5000+) are untouched.
+  var ids = {}, i;
+  for(i = 0; i < NATIVE_DAILY_REMINDER_MAX; i++) ids[NATIVE_DAILY_REMINDER_BASE_ID + i] = 1;
+  for(i = 0; i < NATIVE_PLAN_NOTIF_MAX; i++) ids[NATIVE_PLAN_NOTIF_BASE_ID + i] = 1;
   try{
-    var LN = window.Capacitor.Plugins.LocalNotifications;
-    if(!LN) return;
+    var pend = await LN.getPending();
+    (pend && pend.notifications || []).forEach(function(n){
+      var ex = n.extra || {};
+      if(ex.type === 'daily-reminder' || ex.type === 'plan-block' ||
+         n.title === 'Foc Lock – Study Reminder' || n.title === 'Foc Lock – Study Block'){
+        ids[parseInt(n.id, 10)] = 1;
+      }
+    });
+  }catch(e){}
+  try{
+    await LN.cancel({ notifications: Object.keys(ids).map(function(k){ return {id: parseInt(k, 10)}; }) });
+  }catch(e){}
 
-    // Always clear the whole block first, then re-add whatever is currently
-    // on — simpler and safer than trying to diff old vs new reminder lists.
-    var cancelIds = [];
-    for(var i = 0; i < NATIVE_DAILY_REMINDER_MAX; i++) cancelIds.push({id: NATIVE_DAILY_REMINDER_BASE_ID + i});
-    try{ await LN.cancel({ notifications: cancelIds }); }catch(e){}
+  var ok = await ensureNativeNotifPermission();
+  if(!ok) return;
+  await ensureDndBypassChannels();
 
-    var ok = await ensureNativeNotifPermission();
-    if(!ok) return;
-    await ensureDndBypassChannels();
+  var notifications = [];
 
-    var notifications = [];
-    (D.rems||[]).forEach(function(r, i){
-      if(!r.on || !r.t) return;
-      var parts = r.t.split(':');
+  // 2. Daily reminders (More → Reminders), one alarm per unique time+label
+  var seen = {}, idx = 0;
+  (D.rems||[]).forEach(function(r){
+    if(!r.on || !r.t) return;
+    var key = remKey(r);
+    if(seen[key]) return;
+    seen[key] = 1;
+    var parts = r.t.split(':');
+    var hh = parseInt(parts[0], 10), mm = parseInt(parts[1], 10);
+    if(isNaN(hh) || isNaN(mm) || idx >= NATIVE_DAILY_REMINDER_MAX) return;
+    notifications.push({
+      id: NATIVE_DAILY_REMINDER_BASE_ID + idx++,
+      title: 'Foc Lock – Study Reminder',
+      body: r.l || 'Time to study!',
+      channelId: 'study-reminders',
+      schedule: { on: { hour: hh, minute: mm }, allowWhileIdle: true },
+      extra: { type: 'daily-reminder', remId: r.id }
+    });
+  });
+
+  // 3. Study Plan blocks: one weekly alarm per block per selected day, only if the toggle is on
+  if(D.planNotif !== false){
+    var n = 0;
+    (D.plan||[]).forEach(function(b){
+      if(b.notif === false || !b.s) return;
+      var parts = b.s.split(':');
       var hh = parseInt(parts[0], 10), mm = parseInt(parts[1], 10);
       if(isNaN(hh) || isNaN(mm)) return;
-      notifications.push({
-        id: NATIVE_DAILY_REMINDER_BASE_ID + i,
-        title: 'Foc Lock – Study Reminder',
-        body: r.l || 'Time to study!',
-        channelId: 'study-reminders',
-        schedule: { on: { hour: hh, minute: mm }, allowWhileIdle: true },
-        extra: { type: 'daily-reminder', remId: r.id }
+      var body = (b.subj || 'Study time') + ' · ' + fmtClock(b.s) + ' – ' + fmtClock(b.e) + ' · goal ' + fmtDur(b.goal);
+      (b.days||[]).forEach(function(d){
+        if(n >= NATIVE_PLAN_NOTIF_MAX) return;
+        notifications.push({
+          id: NATIVE_PLAN_NOTIF_BASE_ID + n++,
+          title: 'Foc Lock – Study Block',
+          body: body,
+          channelId: 'study-reminders',
+          // Capacitor weekdays run 1 (Sunday) to 7 (Saturday); ours run 0 to 6
+          schedule: { on: { weekday: d + 1, hour: hh, minute: mm }, allowWhileIdle: true },
+          extra: { type: 'plan-block', blockId: b.id }
+        });
       });
     });
-    if(notifications.length) await LN.schedule({ notifications: notifications });
-  }catch(e){}
+  }
+
+  if(notifications.length) await LN.schedule({ notifications: notifications });
 }
 
 function ensureBrowserNotifications(){
@@ -3026,6 +3175,7 @@ function renderRemPreview(){
 function addRem(){
   var t=document.getElementById('rem-time').value;
   var l=document.getElementById('rem-lbl').value.trim()||'Study Time';
+  if(D.rems.some(function(r){return remKey(r)===remKey({t:t,l:l});})){ toast('You already have that reminder.'); return; }
   D.rems.push({id:uid(),t:t,l:l,on:true});
   localStorage.setItem('fl_r',JSON.stringify(D.rems)); scheduleCloudSave();
   document.getElementById('rem-lbl').value='';
@@ -3054,6 +3204,19 @@ function addManualSession(){
 }
 function rmRem(i){ D.rems.splice(i,1); localStorage.setItem('fl_r',JSON.stringify(D.rems)); scheduleCloudSave(); scheduleAllNativeDailyReminders(); renderRems(); renderRemPreview(); }
 function tglRem(i,v){ D.rems[i].on=v; localStorage.setItem('fl_r',JSON.stringify(D.rems)); scheduleCloudSave(); scheduleAllNativeDailyReminders(); }
+/* Cross-tab guard for web alerts. D lives in memory per tab, so two open tabs (or a tab plus an
+   installed PWA) each used to fire the same reminder. This claims "this alert, this minute" in
+   shared localStorage; whoever claims it first fires, the rest skip. */
+function claimAlert(key){
+  try{
+    var m = JSON.parse(localStorage.getItem('fl_hits')||'{}'), cut = Date.now()-86400000, keep = {};
+    if(m[key]) return false;
+    Object.keys(m).forEach(function(k){ if(m[k] > cut) keep[k] = m[k]; });
+    keep[key] = Date.now();
+    localStorage.setItem('fl_hits', JSON.stringify(keep));
+    return true;
+  }catch(e){ return true; }
+}
 function checkRems(){
   // On native, scheduleAllNativeDailyReminders() already covers this exact
   // minute via an OS alarm — firing here too would double it up whenever
@@ -3067,8 +3230,19 @@ function checkRems(){
     if(r.on&&r.t===cur&&r._lastHit!==stamp){
       r._lastHit=stamp;
       localStorage.setItem('fl_r',JSON.stringify(D.rems));
+      if(!claimAlert('rem|'+remKey(r)+'|'+stamp)) return;
       notifyApp('Foc Lock – Study Reminder',r.l,{tag:'reminder-'+r.t,requireInteraction:true});
     }
+  });
+  checkPlanAlerts(n,cur,stamp);
+}
+function checkPlanAlerts(n,cur,stamp){
+  if(D.planNotif===false||!D.plan||!D.plan.length) return;
+  var dow=n.getDay();
+  D.plan.forEach(function(b){
+    if(b.notif===false||b.s!==cur||b.days.indexOf(dow)===-1) return;
+    if(!claimAlert('plan|'+b.id+'|'+stamp)) return;
+    notifyApp('Foc Lock – Study Block',(b.subj||'Study time')+' · '+fmtClock(b.s)+' – '+fmtClock(b.e)+' · goal '+fmtDur(b.goal),{tag:'plan-'+b.id,requireInteraction:true});
   });
 }
 
@@ -4264,22 +4438,33 @@ function focoClear(){
 var FOCO_SESSIONS = [];
 var FOCO_SID = null;
 
+var FOCO_SESSIONS_OK = false; // true only after a successful cloud read, so a failed read can never overwrite saved chats with []
 function focoLoadSessions(){
-  FOCO_SESSIONS = [];
+  FOCO_SESSIONS = []; FOCO_SESSIONS_OK = false;
   if(!(SB && AUTH && AUTH.user)) return Promise.resolve();
   return SB.from('foco_chats').select('sessions').eq('user_id', AUTH.user.id).maybeSingle()
     .then(function(res){
+      if(res.error) throw res.error;
       if(res.data && res.data.sessions) FOCO_SESSIONS = res.data.sessions;
+      FOCO_SESSIONS_OK = true;
     })
     .catch(function(err){ console.error('Foco load failed:', err); });
 }
-function focoSaveSessions(){
-  if(!(SB && AUTH && AUTH.user)){ toast('Sign in to save Foco chats'); return Promise.resolve(); }
-  return SB.from('foco_chats').upsert({user_id:AUTH.user.id, sessions:FOCO_SESSIONS.slice(0,30), updated_at:new Date().toISOString()},{onConflict:'user_id'})
-    .then(function(res){
-      if(res.error){ console.error('Foco save failed:', res.error); toast('Failed to save chat'); }
-    })
-    .catch(function(err){ console.error('Foco save failed:', err); toast('Failed to save chat'); });
+async function focoSaveSessions(){
+  if(!(SB && AUTH && AUTH.user)){ toast('Sign in to save Foco chats'); return; }
+  try{
+    if(!FOCO_SESSIONS_OK){
+      var r = await SB.from('foco_chats').select('sessions').eq('user_id', AUTH.user.id).maybeSingle();
+      if(r.error) throw r.error;
+      var remote = (r.data && Array.isArray(r.data.sessions)) ? r.data.sessions : [];
+      var have = {}; FOCO_SESSIONS.forEach(function(x){ have[x.id] = 1; });
+      FOCO_SESSIONS = FOCO_SESSIONS.concat(remote.filter(function(x){ return !have[x.id]; }))
+        .sort(function(a, b){ return (b.ts || 0) - (a.ts || 0); });
+      FOCO_SESSIONS_OK = true;
+    }
+    var res = await SB.from('foco_chats').upsert({user_id: AUTH.user.id, sessions: FOCO_SESSIONS.slice(0,30), updated_at: new Date().toISOString()}, {onConflict: 'user_id'});
+    if(res.error) throw res.error;
+  }catch(err){ console.error('Foco save failed:', err); toast('Failed to save chat'); }
 }
 function focoHistSave(){
   if(!FOCO_HIST.length) return;
@@ -4495,7 +4680,7 @@ async function sfocoSend(){
       : 'Not in a session.';
 
     var sys = buildFocoSys() + '\n\n=== SESSION CHAT CONTEXT ===\n' + sessCtx;
-    var reply = await focoGenerateReply(sys, SFOCO_HIST, 1024);
+    var reply = await focoGenerateReply(sys, SFOCO_HIST, 2048);
 
     sfocoRmTyping(tid);
 
@@ -4798,29 +4983,133 @@ var NED_IMGS = []; // {data:base64, mime:string} for current editor
 var SNOTE_IMGS = []; // for session note popup
 
 /* ── Load / Save ── */
-function loadNotes(){
-  NOTES = [];
-  if(!(SB && AUTH && AUTH.user)) { renderNotes(); return Promise.resolve(); }
-  return SB.from('foc_notes').select('notes').eq('user_id', AUTH.user.id).maybeSingle()
-    .then(function(res){
-      if(res.data && res.data.notes) NOTES = res.data.notes;
-      renderNotes();
-    })
-    .catch(function(err){ console.error('Notes load failed:',err); renderNotes(); });
-}
+/* ── Notes storage ──
+   Local-first: every change is written to this device (IndexedDB, with a text-only copy in
+   localStorage as fallback) BEFORE anything goes to the cloud. The cloud copy is then merged,
+   never blindly overwritten. The old code reset NOTES to [] on load and, if the cloud read failed
+   (a big row with many pictures can time out), the next save upserted that empty/partial list over
+   the real notes row, which is how the notes got wiped. */
+var NOTES_BASE = [];            // note ids present at the last successful cloud sync
+var NOTES_LOAD_SEQ = 0, NOTES_SYNC_BUSY = false, NOTES_SYNC_DIRTY = false, NOTES_SYNC_P = Promise.resolve(false);
 
+function notesUid(){ return (AUTH && AUTH.user) ? AUTH.user.id : 'anon'; }
+function idbOpen(){
+  return new Promise(function(res, rej){
+    if(!window.indexedDB){ rej(new Error('IndexedDB unavailable')); return; }
+    var r = indexedDB.open('foc-lock-local', 1);
+    r.onupgradeneeded = function(){ r.result.createObjectStore('kv'); };
+    r.onsuccess = function(){ res(r.result); };
+    r.onerror = function(){ rej(r.error); };
+  });
+}
+function idbGet(k){
+  return idbOpen().then(function(db){ return new Promise(function(res, rej){
+    var q = db.transaction('kv','readonly').objectStore('kv').get(k);
+    q.onsuccess = function(){ res(q.result); }; q.onerror = function(){ rej(q.error); };
+  }); });
+}
+function idbSet(k, v){
+  return idbOpen().then(function(db){ return new Promise(function(res, rej){
+    var tx = db.transaction('kv','readwrite'); tx.objectStore('kv').put(v, k);
+    tx.oncomplete = function(){ res(); }; tx.onerror = function(){ rej(tx.error); }; tx.onabort = function(){ rej(tx.error); };
+  }); });
+}
+function idbClearAll(){
+  return idbOpen().then(function(db){ return new Promise(function(res, rej){
+    var tx = db.transaction('kv','readwrite'); tx.objectStore('kv').clear();
+    tx.oncomplete = function(){ res(); }; tx.onerror = function(){ rej(tx.error); };
+  }); }).catch(function(){});
+}
+function saveNotesLocal(){
+  var key = notesUid();
+  try{
+    // text-only mirror: images are too big for localStorage, but titles/text survive if IndexedDB is unavailable
+    var mirror = NOTES.map(function(n){ var c = Object.assign({}, n); c.images = []; return c; });
+    localStorage.setItem('fl_notes_' + key, JSON.stringify({notes: mirror, base: NOTES_BASE}));
+  }catch(e){}
+  return idbSet('notes:' + key, {notes: NOTES, base: NOTES_BASE, ts: Date.now()}).catch(function(err){ console.error('Local notes save failed:', err); });
+}
+function loadNotesLocal(){
+  var key = notesUid();
+  function mirror(){
+    try{
+      var m = JSON.parse(localStorage.getItem('fl_notes_' + key) || 'null');
+      if(m && Array.isArray(m.notes)) return m;
+    }catch(e){}
+    return {notes: [], base: []};
+  }
+  return idbGet('notes:' + key).then(function(v){
+    if(v && Array.isArray(v.notes)) return {notes: v.notes, base: Array.isArray(v.base) ? v.base : []};
+    return mirror();
+  }).catch(mirror);
+}
+function noteStamp(n){ return n.updated_at || n.ts || 0; }
+function notesSig(a){ return (a||[]).map(function(n){ return n.id + ':' + noteStamp(n); }).sort().join('|'); }
+/* 3-way merge. `base` = ids both sides agreed on last time, so we can tell "deleted here" from
+   "added elsewhere": in base but missing on one side = deleted there; not in base = new, keep. */
+function mergeNotes(remote, local, base){
+  var inBase = {}; (base||[]).forEach(function(id){ inBase[id] = 1; });
+  var map = {};
+  (local||[]).forEach(function(n){ if(n && n.id) (map[n.id] = map[n.id] || {}).l = n; });
+  (remote||[]).forEach(function(n){ if(n && n.id) (map[n.id] = map[n.id] || {}).r = n; });
+  var out = [];
+  Object.keys(map).forEach(function(id){
+    var e = map[id];
+    if(e.l && e.r) out.push(noteStamp(e.r) > noteStamp(e.l) ? e.r : e.l);
+    else if(inBase[id]) return;       // existed at last sync but one side removed it
+    else out.push(e.l || e.r);        // new on one side
+  });
+  out.sort(function(a, b){ return (b.ts || 0) - (a.ts || 0); });
+  return out;
+}
+function syncNotes(){
+  if(!(SB && AUTH && AUTH.user)) return Promise.resolve(false);
+  if(NOTES_SYNC_BUSY){ NOTES_SYNC_DIRTY = true; return NOTES_SYNC_P; }
+  NOTES_SYNC_BUSY = true;
+  NOTES_SYNC_P = (async function(){
+    try{
+      do{
+        NOTES_SYNC_DIRTY = false;
+        var uidNow = AUTH.user.id;
+        var res = await SB.from('foc_notes').select('notes').eq('user_id', uidNow).maybeSingle();
+        if(res.error) throw res.error;                       // a failed read must NEVER look like "no notes"
+        if(!AUTH.user || AUTH.user.id !== uidNow) return false;
+        var remote = Array.isArray(res.data && res.data.notes) ? res.data.notes : [];
+        NOTES = mergeNotes(remote, NOTES, NOTES_BASE);
+        var snap = NOTES.slice();
+        await saveNotesLocal();
+        if(notesSig(remote) !== notesSig(snap)){
+          var up = await SB.from('foc_notes').upsert({user_id: uidNow, notes: snap, updated_at: new Date().toISOString()}, {onConflict: 'user_id'});
+          if(up.error) throw up.error;
+        }
+        NOTES_BASE = snap.map(function(n){ return n.id; });
+        await saveNotesLocal();
+      }while(NOTES_SYNC_DIRTY);
+      return true;
+    } finally { NOTES_SYNC_BUSY = false; }
+  })();
+  return NOTES_SYNC_P;
+}
+function loadNotes(){
+  var seq = ++NOTES_LOAD_SEQ;
+  return loadNotesLocal().then(function(v){
+    if(seq !== NOTES_LOAD_SEQ) return;
+    NOTES = v.notes; NOTES_BASE = v.base; renderNotes();
+  }).then(function(){
+    if(seq !== NOTES_LOAD_SEQ) return;
+    if(SB && AUTH && AUTH.user) return syncNotes().then(function(){ renderNotes(); }).catch(function(err){ console.error('Notes sync failed (local copy kept):', err); });
+  });
+}
+/* Writes locally first (always works offline), then syncs to the cloud in the background. */
 function saveNoteData(){
-  if(!(SB && AUTH && AUTH.user)){ toast('Sign in to save notes'); return Promise.reject(new Error('Not signed in')); }
-  return SB.from('foc_notes').upsert({
-    user_id: AUTH.user.id,
-    notes: NOTES,
-    updated_at: new Date().toISOString()
-  }, {onConflict: 'user_id'})
-  .then(function(res){
-    if(res.error){ console.error('Notes save failed:',res.error); throw res.error; }
-    return res;
-  })
-  .catch(function(err){ console.error('Notes save failed:',err); throw err; });
+  var p = saveNotesLocal();
+  if(SB && AUTH && AUTH.user){
+    syncNotes().then(function(){ renderNotes(); }).catch(function(err){
+      console.error('Notes cloud sync failed:', err);
+      toast('Saved on this device. Cloud sync will retry.');
+    });
+  }
+  return p;
 }
 
 /* ── Render Notes List ── */
@@ -4944,11 +5233,6 @@ async function saveNote(){
   var subj = document.getElementById('ned-subj').value.trim();
   if(!title && !content){ toast('Write something first'); return; }
 
-  if(!(SB && AUTH && AUTH.user)){
-    toast('Sign in to save notes');
-    return;
-  }
-
   var saveBtn = document.querySelector('.ned-save');
   if(saveBtn){ saveBtn.disabled = true; saveBtn.style.opacity = '.6'; }
 
@@ -4979,7 +5263,7 @@ async function saveNote(){
     toast('Note saved');
   }catch(err){
     console.error('Save note failed:', err);
-    toast('Could not save note \u2014 check connection');
+    toast('Could not save note on this device');
     if(saveBtn){ saveBtn.disabled = false; saveBtn.style.opacity = ''; }
   }
 }
@@ -4992,7 +5276,7 @@ function deleteCurrentNote(){
   toast('Note deleted');
   saveNoteData().catch(function(err){
     console.error('Delete note sync failed:', err);
-    toast('Deleted locally, but sync failed \u2014 check connection');
+    toast('Deleted on this device. Cloud sync will retry.');
   });
 }
 
@@ -5187,7 +5471,6 @@ function saveSessNote(){
   var title = (document.getElementById('snote-title').value || '').trim();
   var content = (document.getElementById('snote-content').value || '').trim();
   if(!title && !content){ toast('Write something first'); return; }
-  if(!(SB && AUTH && AUTH.user)){ toast('Sign in to save notes'); return; }
   var subj = CUR ? ((CUR.subjs && CUR.subjs.length ? CUR.subjs[0] : null) || CUR.subj || '') : '';
   NOTES.unshift({
     id: uid(),
@@ -5203,7 +5486,7 @@ function saveSessNote(){
   toast('Note saved to Foc Space \u2192 Notes');
   saveNoteData().catch(function(err){
     console.error('Session note sync failed:', err);
-    toast('Saved locally, but sync failed \u2014 check connection');
+    toast('Saved on this device. Cloud sync will retry.');
   });
 }
 function snoteAddImages(files){
@@ -5360,6 +5643,393 @@ function stopPauseCountdown(){
   if(st){ st.style.color=''; st.textContent='In Progress'; }
 }
 
+
+// ===== STUDY PLAN + EXAM COUNTDOWN =====
+// D.plan  : [{id,subj,s:'HH:MM',e:'HH:MM',goal:minutes,days:[0-6],on:true}]
+// D.exams : [{id,name,date:'YYYY-MM-DD',time:'HH:MM'}]
+// D.planTs: last-change timestamp; the newer side wins on cloud merge so deletes stick.
+var PLAN_EDIT_ID = null, PLAN_DAYS = [1,2,3,4,5], EXAM_EDIT_ID = null, EXAM_TMR = null;
+var PLAN_DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function planTouch(){
+  D.planTs = Date.now();
+  localStorage.setItem('fl_plan',JSON.stringify(D.plan));
+  localStorage.setItem('fl_exams',JSON.stringify(D.exams));
+  localStorage.setItem('fl_plts',String(D.planTs));
+  scheduleCloudSave();
+  scheduleAllNativeDailyReminders();
+}
+function hmToMin(hm){ var p=String(hm||'').split(':'); return (parseInt(p[0],10)||0)*60+(parseInt(p[1],10)||0); }
+function fmtClock(hm){
+  var m=hmToMin(hm), h=Math.floor(m/60), mm=m%60, ap=h>=12?'PM':'AM';
+  h=h%12; if(h===0)h=12;
+  return h+':'+pad(mm)+' '+ap;
+}
+function refreshPlanUI(){
+  renderPlanList(); renderExamList(); renderHomePlan(); renderHomeExam();
+}
+
+/* ---------- STUDY PLAN: settings page ---------- */
+function renderPlanDayChips(){
+  var c=document.getElementById('plan-days'); if(!c)return;
+  c.innerHTML=PLAN_DAY_NAMES.map(function(n,i){
+    return '<div class="chip'+(PLAN_DAYS.indexOf(i)>-1?' sel':'')+'" style="flex-shrink:0;" onclick="togglePlanDay('+i+')">'+n+'</div>';
+  }).join('');
+}
+function togglePlanDay(i){
+  var k=PLAN_DAYS.indexOf(i);
+  if(k>-1)PLAN_DAYS.splice(k,1); else PLAN_DAYS.push(i);
+  renderPlanDayChips();
+}
+function planPresetDays(kind){
+  PLAN_DAYS = kind==='all'?[0,1,2,3,4,5,6]:kind==='weekdays'?[1,2,3,4,5]:[0,6];
+  renderPlanDayChips();
+}
+function fillPlanSubjects(sel){
+  var s=document.getElementById('plan-subj'); if(!s)return;
+  var opts=['<option value="">Any subject</option>'].concat((D.subj||[]).map(function(x){
+    return '<option value="'+escHtml(x)+'">'+escHtml(x)+'</option>';
+  }));
+  s.innerHTML=opts.join('');
+  s.value=sel||'';
+  if(sel && s.value!==sel){ // subject was removed from the list; keep it selectable
+    s.insertAdjacentHTML('beforeend','<option value="'+escHtml(sel)+'">'+escHtml(sel)+'</option>'); s.value=sel;
+  }
+}
+function planAutoGoal(){
+  var s=hmToMin(document.getElementById('plan-start').value), e=hmToMin(document.getElementById('plan-end').value);
+  var g=document.getElementById('plan-goal');
+  if(g && !g.dataset.touched && e>s) g.value=e-s;
+}
+function resetPlanForm(){
+  PLAN_EDIT_ID=null; PLAN_DAYS=[1,2,3,4,5];
+  document.getElementById('plan-start').value='18:00';
+  document.getElementById('plan-end').value='19:30';
+  var g=document.getElementById('plan-goal'); g.value=90; delete g.dataset.touched;
+  fillPlanSubjects('');
+  document.getElementById('plan-form-title').textContent='New Study Block';
+  document.getElementById('plan-save-btn').textContent='Add to Routine';
+  document.getElementById('plan-cancel-btn').style.display='none';
+  renderPlanDayChips();
+}
+function savePlanBlock(){
+  var s=document.getElementById('plan-start').value, e=document.getElementById('plan-end').value;
+  var subj=document.getElementById('plan-subj').value;
+  var goal=parseInt(document.getElementById('plan-goal').value,10);
+  if(!s||!e){ toast('Pick a start and end time'); return; }
+  if(hmToMin(e)<=hmToMin(s)){ toast('End time must be after start time'); return; }
+  if(!PLAN_DAYS.length){ toast('Pick at least one day'); return; }
+  if(isNaN(goal)||goal<1){ toast('Enter how many minutes you will study'); return; }
+  var win=hmToMin(e)-hmToMin(s);
+  if(goal>win) goal=win;
+  var blk={id:PLAN_EDIT_ID||uid(),subj:subj,s:s,e:e,goal:goal,days:PLAN_DAYS.slice().sort(),on:true,notif:true};
+  if(PLAN_EDIT_ID){
+    for(var i=0;i<D.plan.length;i++){ if(D.plan[i].id===PLAN_EDIT_ID){ blk.notif=D.plan[i].notif!==false; D.plan[i]=blk; break; } }
+    toast('Block updated!');
+  }else{
+    D.plan.push(blk); toast('Added to your routine!');
+  }
+  planTouch(); resetPlanForm(); refreshPlanUI();
+}
+function editPlanBlock(id){
+  var b=D.plan.filter(function(x){return x.id===id;})[0]; if(!b)return;
+  PLAN_EDIT_ID=id; PLAN_DAYS=b.days.slice();
+  document.getElementById('plan-start').value=b.s;
+  document.getElementById('plan-end').value=b.e;
+  var g=document.getElementById('plan-goal'); g.value=b.goal; g.dataset.touched='1';
+  fillPlanSubjects(b.subj);
+  document.getElementById('plan-form-title').textContent='Edit Study Block';
+  document.getElementById('plan-save-btn').textContent='Save Changes';
+  document.getElementById('plan-cancel-btn').style.display='block';
+  renderPlanDayChips();
+  var c=document.getElementById('content'); if(c)c.scrollTop=0;
+}
+function cancelPlanEdit(){ resetPlanForm(); }
+function togglePlanBlockNotif(id,v){
+  D.plan.forEach(function(b){ if(b.id===id)b.notif=!!v; });
+  planTouch(); renderPlanList();
+  if(v&&D.planNotif===false) toast('Turn on "Block notifications" above to receive it.');
+}
+function deletePlanBlock(id){
+  if(!confirm('Delete this study block?'))return;
+  D.plan=D.plan.filter(function(b){return b.id!==id;});
+  if(PLAN_EDIT_ID===id) resetPlanForm();
+  planTouch(); refreshPlanUI(); toast('Block deleted.');
+}
+function planDaysLabel(days){
+  if(days.length===7)return 'Every day';
+  if(days.length===5&&[1,2,3,4,5].every(function(d){return days.indexOf(d)>-1;}))return 'Weekdays';
+  if(days.length===2&&days.indexOf(0)>-1&&days.indexOf(6)>-1)return 'Weekends';
+  return days.map(function(d){return PLAN_DAY_NAMES[d];}).join(', ');
+}
+var ICON_EDIT='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+var ICON_DEL='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+var ICON_BELL='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>';
+function renderPlanList(){
+  var c=document.getElementById('plan-list'); if(!c)return;
+  if(!D.plan.length){
+    c.innerHTML='<div style="font-size:13px;color:var(--text2);font-weight:500;margin-top:8px;">No study blocks yet. Add your first one above.</div>';
+    return;
+  }
+  var list=D.plan.slice().sort(function(a,b){return hmToMin(a.s)-hmToMin(b.s);});
+  c.innerHTML=list.map(function(b){
+    var nOn=b.notif!==false;
+    return '<div class="li-card">'
+      +'<div class="li-top">'
+      +'<div class="li-title">'+fmtClock(b.s)+' – '+fmtClock(b.e)+'</div>'
+      +'<div class="li-sub">'+escHtml(b.subj||'Any subject')+' · '+fmtDur(b.goal)+' goal</div>'
+      +'<div class="li-meta">'+planDaysLabel(b.days)+'</div>'
+      +'</div>'
+      +'<div class="li-foot">'
+      +'<label class="li-notif'+(nOn?' on':'')+'">'+ICON_BELL+'<span>Notify</span>'
+      +'<span class="tgl li-tgl"><input type="checkbox"'+(nOn?' checked':'')+' onchange="togglePlanBlockNotif(\''+b.id+'\',this.checked)"><span class="tslider"></span></span></label>'
+      +'<div class="li-actions">'
+      +'<button class="icon-btn" aria-label="Edit" onclick="editPlanBlock(\''+b.id+'\')">'+ICON_EDIT+'</button>'
+      +'<button class="icon-btn danger" aria-label="Delete" onclick="deletePlanBlock(\''+b.id+'\')">'+ICON_DEL+'</button>'
+      +'</div></div></div>';
+  }).join('');
+}
+
+/* ---------- STUDY PLAN: home card ---------- */
+function planBlockProgress(b, now){
+  var t=today();
+  var d0=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
+  var from=d0+hmToMin(b.s)*60000;
+  var to=d0+hmToMin(b.e)*60000+15*60000; // 15 min grace: a session ending just after the window still counts
+  var secs=D.sess.reduce(function(a,r){
+    if(r.d!==t)return a;
+    var ts=safeNum(r.ts,0);
+    if(ts<from||ts>to)return a;
+    if(b.subj){
+      var hit=r.subj===b.subj||(Array.isArray(r.subjs)&&r.subjs.indexOf(b.subj)>-1);
+      if(!hit)return a;
+    }
+    return a+safeNum(r.dur,0);
+  },0);
+  return Math.round(secs/60);
+}
+function renderHomePlan(){
+  var c=document.getElementById('home-plan'); if(!c)return;
+  var now=new Date(), dow=now.getDay(), nowMin=now.getHours()*60+now.getMinutes();
+  var todays=(D.plan||[]).filter(function(b){return b.on!==false&&b.days.indexOf(dow)>-1;})
+    .sort(function(a,b){return hmToMin(a.s)-hmToMin(b.s);});
+  if(!D.plan.length){
+    c.innerHTML='<div class="card" style="border-style:dashed;cursor:pointer;" onclick="goScr(\'more\');gSub(\'sub-plan\');">'
+      +'<div class="ctitle" style="margin-bottom:6px;">Study Routine</div>'
+      +'<div style="font-size:13px;color:var(--text2);font-weight:500;line-height:1.45;">Plan when you study and how long. Tap to set up your routine (optional).</div></div>';
+    return;
+  }
+  if(!todays.length){
+    c.innerHTML='<div class="card"><div class="ctitle">Today\'s Routine</div>'
+      +'<div style="font-size:13px;color:var(--text2);font-weight:500;">Nothing planned for today. Enjoy the rest, or add a block in More → Study Plan.</div></div>';
+    return;
+  }
+  var doneN=0;
+  var rows=todays.map(function(b){
+    var got=planBlockProgress(b,now), pct=Math.min(100,Math.round(got/b.goal*100));
+    var sM=hmToMin(b.s), eM=hmToMin(b.e), st, badge, color;
+    if(got>=b.goal){ st='done'; badge='Done'; color='var(--success)'; doneN++; }
+    else if(nowMin>=sM&&nowMin<eM){ st='now'; badge='Now'; color='var(--accent2)'; }
+    else if(nowMin>=eM){ st='missed'; badge='Missed'; color='var(--warn)'; }
+    else { st='next'; badge='Upcoming'; color='var(--text3)'; }
+    var startBtn=(st==='now'||st==='next')
+      ?'<button class="small-btn" onclick="startPlanBlock(\''+b.id+'\')">Start</button>':'';
+    return '<div class="plan-row plan-'+st+'">'
+      +'<div style="display:flex;align-items:center;gap:10px;">'
+      +'<div class="rem-time-badge" style="min-width:74px;text-align:center;">'+fmtClock(b.s)+'</div>'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(b.subj||'Any subject')+'</div>'
+      +'<div style="font-size:11px;color:var(--text2);font-weight:600;margin-top:1px;">until '+fmtClock(b.e)+' · '+fmtDur(got)+' / '+fmtDur(b.goal)+'</div>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:8px;">'
+      +'<span style="font-size:11px;font-weight:800;color:'+color+';">'+badge+'</span>'+startBtn
+      +'</div></div>'
+      +'<div class="xb-wrap" style="margin:8px 0 0;"><div class="xb-fill" style="width:'+pct+'%;'+(st==='done'?'background:var(--success);':'')+'"></div></div>'
+      +'</div>';
+  }).join('');
+  c.innerHTML='<div class="card">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'
+    +'<div class="ctitle" style="margin:0;">Today\'s Routine</div>'
+    +'<div style="font-size:11px;font-weight:800;color:var(--text2);">'+doneN+'/'+todays.length+' done</div></div>'
+    +rows+'</div>';
+}
+function startPlanBlock(id){
+  var b=D.plan.filter(function(x){return x.id===id;})[0]; if(!b)return;
+  openSM();
+  if(CUR)return;
+  var now=new Date(), left=Math.max(1,b.goal-planBlockProgress(b,now));
+  var ci=document.getElementById('cust-subj'); if(ci&&b.subj)ci.value=b.subj;
+  // pick the preset that matches the remaining goal, otherwise use the custom field
+  var preset=[30,45,60].filter(function(m){return m===left;})[0];
+  if(preset){ selT(preset,document.querySelector('.sm-dur-opt[data-mins="'+preset+'"]')); }
+  else{
+    selT(-1,document.getElementById('sm-cust-pill'));
+    var ct=document.getElementById('cust-t'); if(ct)ct.value=left;
+  }
+}
+
+/* ---------- EXAM COUNTDOWN: settings page ---------- */
+function examTargetMs(x){
+  var p=String(x.date||'').split('-');
+  if(p.length!==3)return NaN;
+  var tm=String(x.time||'09:00').split(':');
+  return new Date(+p[0],(+p[1])-1,+p[2],parseInt(tm[0],10)||0,parseInt(tm[1],10)||0,0).getTime();
+}
+function resetExamForm(){
+  EXAM_EDIT_ID=null;
+  document.getElementById('exam-name').value='';
+  document.getElementById('exam-date').value='';
+  document.getElementById('exam-time').value='09:00';
+  document.getElementById('exam-form-title').textContent='New Exam';
+  document.getElementById('exam-save-btn').textContent='Add Exam';
+  document.getElementById('exam-cancel-btn').style.display='none';
+}
+function saveExam(){
+  var name=document.getElementById('exam-name').value.trim()||'Exam';
+  var date=document.getElementById('exam-date').value;
+  var time=document.getElementById('exam-time').value||'09:00';
+  if(!date){ toast('Pick the exam date'); return; }
+  var x={id:EXAM_EDIT_ID||uid(),name:name,date:date,time:time};
+  if(isNaN(examTargetMs(x))){ toast('That date is not valid'); return; }
+  if(EXAM_EDIT_ID){
+    for(var i=0;i<D.exams.length;i++){ if(D.exams[i].id===EXAM_EDIT_ID){ D.exams[i]=x; break; } }
+    toast('Exam updated!');
+  }else{
+    D.exams.push(x); toast('Exam countdown added!');
+  }
+  planTouch(); resetExamForm(); refreshPlanUI();
+}
+function editExam(id){
+  var x=D.exams.filter(function(e){return e.id===id;})[0]; if(!x)return;
+  EXAM_EDIT_ID=id;
+  document.getElementById('exam-name').value=x.name;
+  document.getElementById('exam-date').value=x.date;
+  document.getElementById('exam-time').value=x.time||'09:00';
+  document.getElementById('exam-form-title').textContent='Edit Exam';
+  document.getElementById('exam-save-btn').textContent='Save Changes';
+  document.getElementById('exam-cancel-btn').style.display='block';
+  var c=document.getElementById('content'); if(c)c.scrollTop=0;
+}
+function cancelExamEdit(){ resetExamForm(); }
+function deleteExam(id){
+  if(!confirm('Delete this exam countdown?'))return;
+  D.exams=D.exams.filter(function(x){return x.id!==id;});
+  if(EXAM_EDIT_ID===id) resetExamForm();
+  planTouch(); refreshPlanUI(); toast('Exam deleted.');
+}
+function examDaysLeft(ms){
+  // calendar days between today and exam day (local time), so "1 day" means tomorrow
+  var n=new Date(), a=new Date(n.getFullYear(),n.getMonth(),n.getDate()).getTime();
+  var e=new Date(ms), b=new Date(e.getFullYear(),e.getMonth(),e.getDate()).getTime();
+  return Math.round((b-a)/86400000);
+}
+function examLevel(ms){
+  var diff=ms-Date.now();
+  if(diff<=0)return 'over';
+  var days=diff/86400000;
+  if(days<=3)return 'crit';
+  if(days<=7)return 'hot';
+  if(days<=30)return 'warn';
+  return 'calm';
+}
+function renderExamList(){
+  var c=document.getElementById('exam-list'); if(!c)return;
+  if(!D.exams.length){
+    c.innerHTML='<div style="font-size:13px;color:var(--text2);font-weight:500;margin-top:8px;">No exams yet. Add one above to see a countdown on Home.</div>';
+    return;
+  }
+  var list=D.exams.slice().sort(function(a,b){return examTargetMs(a)-examTargetMs(b);});
+  c.innerHTML=list.map(function(x){
+    var ms=examTargetMs(x), over=ms<=Date.now(), dl=examDaysLeft(ms);
+    var when=new Date(ms).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})+' · '+fmtClock(x.time||'09:00');
+    var tag=over?'Finished':(dl===0?'Today':dl===1?'Tomorrow':dl+' days left');
+    return '<div class="li-card"'+(over?' style="opacity:.55;"':'')+'>'
+      +'<div class="li-top">'
+      +'<div class="li-title">'+escHtml(x.name)+'</div>'
+      +'<div class="li-sub">'+when+'</div>'
+      +'</div>'
+      +'<div class="li-foot">'
+      +'<div class="exam-tag exam-'+examLevel(ms)+'" style="margin:0;">'+tag+'</div>'
+      +'<div class="li-actions">'
+      +'<button class="icon-btn" aria-label="Edit" onclick="editExam(\''+x.id+'\')">'+ICON_EDIT+'</button>'
+      +'<button class="icon-btn danger" aria-label="Delete" onclick="deleteExam(\''+x.id+'\')">'+ICON_DEL+'</button>'
+      +'</div></div></div>';
+  }).join('');
+}
+
+/* ---------- EXAM COUNTDOWN: home card (live) ---------- */
+function upcomingExams(){
+  return (D.exams||[]).map(function(x){ return {x:x,ms:examTargetMs(x)}; })
+    .filter(function(o){ return !isNaN(o.ms) && o.ms>Date.now(); })
+    .sort(function(a,b){return a.ms-b.ms;});
+}
+function examColor(ms){
+  // green (60+ days away) -> amber -> red (exam time), smooth in between
+  var days=Math.max(0,(ms-Date.now())/86400000);
+  var hue=Math.round(120*Math.min(1,days/60));
+  return 'hsl('+hue+',72%,46%)';
+}
+function renderHomeExam(){
+  var c=document.getElementById('home-exam'); if(!c)return;
+  var up=upcomingExams();
+  if(!up.length){ c.innerHTML=''; return; }
+  var more=up.length>1?'<span class="exam-more">+'+(up.length-1)+' more</span>':'';
+  c.innerHTML='<div class="exam-strip" id="exam-card">'
+    +'<div class="exam-strip-top">'
+    +'<span class="exam-strip-name">'+escHtml(up[0].x.name)+'</span>'
+    +'<span class="exam-strip-time" id="ex-t"></span>'
+    +'</div>'
+    +'<div class="exam-line"><div class="exam-line-fill" id="ex-fill"></div></div>'
+    +more
+    +'</div>';
+  tickExam();
+}
+function tickExam(){
+  var t=document.getElementById('ex-t'); if(!t)return;
+  var up=upcomingExams();
+  if(!up.length){ renderHomeExam(); renderExamList(); return; } // the exam just started
+  var ms=up[0].ms, diff=ms-Date.now();
+  var mins=Math.floor(diff/60000), d=Math.floor(mins/1440), h=Math.floor((mins%1440)/60), m=mins%60;
+  var txt = d>0 ? d+'d '+h+'h' : h>0 ? h+'h '+m+'m' : m+'m';
+  if(examDaysLeft(ms)===0) txt='Today · '+txt;
+  t.textContent=txt+' left';
+  var col=examColor(ms), fill=document.getElementById('ex-fill');
+  var pct=Math.round((1-Math.min(1,Math.max(0,diff/(60*86400000))))*100);
+  fill.style.width=Math.max(4,pct)+'%';
+  fill.style.background=col;
+  t.style.color=col;
+}
+function startExamTicker(){
+  if(EXAM_TMR)return;
+  EXAM_TMR=setInterval(function(){
+    var home=document.getElementById('scr-home');
+    if(home&&home.classList.contains('active')) tickExam();
+  },1000);
+  // routine status (Now / Missed) moves with the clock
+  setInterval(function(){
+    var home=document.getElementById('scr-home');
+    if(home&&home.classList.contains('active')) renderHomePlan();
+  },60000);
+}
+function togglePlanNotif(v){
+  D.planNotif=!!v;
+  localStorage.setItem('fl_pln',v?'1':'0');
+  if(v){
+    if(isNativeApp()) ensureNativeNotifPermission(); else ensureBrowserNotifications();
+  }
+  scheduleAllNativeDailyReminders();
+  toast(v?'You will be notified when a study block starts.':'Study block notifications are off.');
+}
+function initPlanFeature(){
+  var pt=document.getElementById('plan-notif-tgl'); if(pt) pt.checked=D.planNotif!==false;
+  resetPlanForm(); resetExamForm();
+  var g=document.getElementById('plan-goal');
+  if(g) g.addEventListener('input',function(){ g.dataset.touched='1'; });
+  ['plan-start','plan-end'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.addEventListener('change',planAutoGoal);
+  });
+  refreshPlanUI(); startExamTicker();
+}
 
 focoInitSession();
 loadNotes();
