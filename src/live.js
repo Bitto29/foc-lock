@@ -115,6 +115,36 @@ var CLOUD_READY = false;
 function uid(){ if(window.crypto&&crypto.randomUUID) return crypto.randomUUID(); return 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2); }
 function safeNum(v,fallback){ v=parseInt(v,10); return isNaN(v)?fallback:v; }
 
+/* ── Subjects: main subject vs sub-subject ──
+   A session's display string looks like "Physics · Online Class + Chemistry · Practicals".
+   Stats must only ever count the MAIN subject (Physics, Chemistry); the part after " · " is the sub-subject. */
+function parseSubjString(str){
+  return String(str||'General').split(' + ').map(function(part){
+    var i=part.indexOf(' · ');
+    var m=(i>-1?part.slice(0,i):part).trim(), t=(i>-1?part.slice(i+3):'').trim();
+    return {s:m||'General',t:t};
+  });
+}
+function subjDisplay(detail){
+  return detail.map(function(x){ return x.t?x.s+' · '+x.t:x.s; }).join(' + ');
+}
+function normalizeSessionSubjects(r){
+  var det=Array.isArray(r.subjsDetail)?r.subjsDetail.filter(function(x){return x&&x.s;}).map(function(x){return {s:String(x.s).trim(),t:String(x.t||'').trim()};}):[];
+  // Broken data: no detail, or a "main" subject that still contains " · " (an old edit saved the whole display string as the subject)
+  var broken=!det.length||det.some(function(x){return x.s.indexOf(' · ')>-1||x.s.indexOf(' + ')>-1;});
+  if(broken) det=parseSubjString(r.subj);
+  if(r.subsubj&&det.length===1&&!det[0].t) det[0].t=String(r.subsubj).trim(); // legacy single sub-subject field
+  r.subjsDetail=det;
+  r.subjs=uniqueStrings(det.map(function(x){return x.s;}));
+  if(!r.subj) r.subj=subjDisplay(det);
+  return r;
+}
+function sessMainSubjects(r){
+  return (r.subjs&&r.subjs.length)?r.subjs:parseSubjString(r.subj).map(function(x){return x.s;});
+}
+
+function allMainSubjects(){ var a=[]; D.sess.forEach(function(r){ a=a.concat(sessMainSubjects(r)); }); return uniqueStrings(a); }
+
 // Two reminders with the same time + label are the same reminder. Duplicates sneak in when an old
 // reminder without an id is merged with its cloud copy, and every duplicate fires its own notification.
 function remKey(r){ return String(r.t||'')+'|'+String(r.l||'').trim().toLowerCase(); }
@@ -152,7 +182,9 @@ function ensureDefaults(){
   if(typeof D.lock!=='boolean') D.lock=true;
 
   D.sess=D.sess.map(function(s){
-    return {
+    // Keep every field (subjs, subjsDetail, open...). The old version rebuilt the object with only a few fields,
+    // which stripped subjs/subjsDetail on every app start, so "Physics · Online Class" was counted as its own subject.
+    var r=Object.assign({},s,{
       id:s.id||uid(),
       subj:s.subj||'General',
       dur:safeNum(s.dur,0),
@@ -161,7 +193,8 @@ function ensureDefaults(){
       ts:safeNum(s.ts,Date.now()),
       xp:safeNum(s.xp,Math.max(0,Math.floor(safeNum(s.dur,0)/60))),
       manual:!!s.manual
-    };
+    });
+    return normalizeSessionSubjects(r);
   }).sort(function(a,b){ return safeNum(a.ts,0)-safeNum(b.ts,0); });
 
   D.rems=D.rems.map(function(r){
@@ -2605,8 +2638,7 @@ function updSBars(){
   if(lbl) lbl.innerHTML=labelTxt?'<div class="subj-period-label">'+labelTxt+'</div>':'';
   // Aggregate — credit each subject in s.subjs (multi-subject support)
   var tot={}; filtered.forEach(function(s){
-    var subjList=s.subjs&&s.subjs.length?s.subjs:[s.subj||'General'];
-    subjList.forEach(function(k){ tot[k]=(tot[k]||0)+s.dur; });
+    sessMainSubjects(s).forEach(function(k){ tot[k]=(tot[k]||0)+s.dur; });
   });
   var keys=Object.keys(tot).sort(function(a,b){return tot[b]-tot[a];});
   if(!keys.length){c.innerHTML='<div style="font-size:13px;color:var(--text2);font-weight:500;">No sessions for this period.</div>';return;}
@@ -2662,11 +2694,28 @@ function deleteSession(id){
   recalcStreak(); chkAch(); refreshDerivedAndUI(); scheduleCloudSave();
   toast('Session deleted.');
 }
+var EDIT_ROWS=[];
+function renderEditSubjRows(){
+  var c=document.getElementById('edit-subj-rows'); if(!c)return;
+  var dl=document.getElementById('edit-subj-list');
+  if(dl) dl.innerHTML=(D.subj||[]).map(function(x){ return '<option value="'+escHtml(x).replace(/"/g,'&quot;')+'"></option>'; }).join('');
+  c.innerHTML=EDIT_ROWS.map(function(r,i){
+    return '<div class="edit-subj-row">'
+      +'<input type="text" class="inp" list="edit-subj-list" placeholder="Subject (e.g. Physics)" value="'+escHtml(r.s).replace(/"/g,'&quot;')+'" oninput="EDIT_ROWS['+i+'].s=this.value">'
+      +'<input type="text" class="inp" placeholder="Sub-subject (optional)" value="'+escHtml(r.t).replace(/"/g,'&quot;')+'" oninput="EDIT_ROWS['+i+'].t=this.value">'
+      +(EDIT_ROWS.length>1?'<button type="button" class="icon-btn danger" aria-label="Remove subject" onclick="removeEditSubjRow('+i+')" style="margin-top:2px;">&times;</button>':'<span></span>')
+      +'</div>';
+  }).join('');
+}
+function addEditSubjRow(){ EDIT_ROWS.push({s:'',t:''}); renderEditSubjRows(); }
+function removeEditSubjRow(i){ EDIT_ROWS.splice(i,1); if(!EDIT_ROWS.length)EDIT_ROWS=[{s:'',t:''}]; renderEditSubjRows(); }
 function openEditSession(id){
   var s=D.sess.find(function(x){return x.id===id;});
   if(!s)return;
   document.getElementById('edit-sess-id').value=s.id;
-  document.getElementById('edit-subj').value=s.subj||'';
+  normalizeSessionSubjects(s);
+  EDIT_ROWS=s.subjsDetail.map(function(x){return {s:x.s,t:x.t};});
+  renderEditSubjRows();
   document.getElementById('edit-date').value=s.d||'';
   var dt=new Date(s.ts);
   var hh=String(dt.getHours()).padStart(2,'0');
@@ -2679,7 +2728,12 @@ function saveEditSession(){
   var id=document.getElementById('edit-sess-id').value;
   var idx=D.sess.findIndex(function(s){return s.id===id;});
   if(idx===-1){toast('Session not found.');return;}
-  var subj=document.getElementById('edit-subj').value.trim()||'General';
+  var det=EDIT_ROWS.map(function(r){
+    // a "·" typed into the subject box still means main · sub, never a new subject
+    var p=parseSubjString(String(r.s||'').trim()||'General')[0];
+    return {s:p.s,t:(String(r.t||'').trim()||p.t)};
+  }).filter(function(r){return r.s;});
+  if(!det.length) det=[{s:'General',t:''}];
   var date=document.getElementById('edit-date').value;
   var time=document.getElementById('edit-time').value||'00:00';
   var mins=parseInt(document.getElementById('edit-dur').value,10);
@@ -2687,10 +2741,11 @@ function saveEditSession(){
   if(!mins||mins<1){toast('Enter a valid duration.');return;}
   var ts=new Date(date+'T'+time+':00').getTime();
   if(isNaN(ts))ts=D.sess[idx].ts||Date.now();
-  D.sess[idx].subj=subj; D.sess[idx].d=date; D.sess[idx].ts=ts;
-  D.sess[idx].dur=mins*60; D.sess[idx].xp=mins;
-  D.sess[idx].subjs=[subj];
-  D.sess[idx].subjsDetail=[{s:subj,t:''}];
+  var r=D.sess[idx];
+  r.subjsDetail=det; r.subjs=uniqueStrings(det.map(function(x){return x.s;})); r.subj=subjDisplay(det); r.subsubj='';
+  r.d=date; r.ts=ts; r.dur=mins*60; r.xp=mins;
+  r.subjs.forEach(function(m){ if(D.subj.indexOf(m)<0) D.subj.push(m); });
+  localStorage.setItem('fl_sj',JSON.stringify(D.subj));
   D.sess.sort(function(a,b){return safeNum(a.ts,0)-safeNum(b.ts,0);});
   D.xp=calcXP();
   localStorage.setItem('fl_s',JSON.stringify(D.sess)); localStorage.setItem('fl_xp',D.xp);
@@ -2717,7 +2772,7 @@ var GOALS=[
   {id:'g3',n:'XP Sprint',d:'Earn 250 total XP',goal:function(){return 250;},value:function(){return D.xp;},unit:'XP'},
   {id:'g4',n:'Streak Guard',d:'Hold a 7-day streak',goal:function(){return 7;},value:function(){return D.streak.c;},unit:'days'},
   {id:'g5',n:'Manual Logger',d:'Log 1 manual session',goal:function(){return 1;},value:function(){return D.sess.filter(function(s){return!!s.manual;}).length;},unit:'log'},
-  {id:'g6',n:'Subject Explorer',d:'Study 5 different subjects',goal:function(){return 5;},value:function(){return uniqueStrings(D.sess.map(function(s){return s.subj;})).length;},unit:'subj'}
+  {id:'g6',n:'Subject Explorer',d:'Study 5 different subjects',goal:function(){return 5;},value:function(){return allMainSubjects().length;},unit:'subj'}
 ];
 function renderGoals(){
   var el=document.getElementById('goals-grid'); if(!el)return;
@@ -2745,8 +2800,8 @@ var BDGS=[
   {id:'x1',n:'XP Hunter',d:'Earn 100 XP',icon:'bolt',chk:function(){return D.xp>=100;}},
   {id:'x5',n:'XP Master',d:'Earn 500 XP',icon:'bolt',chk:function(){return D.xp>=500;}},
   {id:'x10',n:'XP Legend',d:'Earn 2,500 XP',icon:'bolt',chk:function(){return D.xp>=2500;}},
-  {id:'subj5',n:'Explorer',d:'Study 5 different subjects',icon:'book',chk:function(){return uniqueStrings(D.sess.map(function(s){return s.subj;})).length>=5;}},
-  {id:'subj10',n:'Polymath',d:'Study 10 different subjects',icon:'book',chk:function(){return uniqueStrings(D.sess.map(function(s){return s.subj;})).length>=10;}},
+  {id:'subj5',n:'Explorer',d:'Study 5 different subjects',icon:'book',chk:function(){return allMainSubjects().length>=5;}},
+  {id:'subj10',n:'Polymath',d:'Study 10 different subjects',icon:'book',chk:function(){return allMainSubjects().length>=10;}},
 
   /* ── Harder / long-haul achievements ── */
   {id:'s60',n:'60-Day Streak',d:'Study 60 days in a row',icon:'shield',chk:function(){return D.streak.c>=60;}},
@@ -2768,8 +2823,8 @@ var BDGS=[
   {id:'long6',n:'Iron Will',d:'Complete a single 6-hour session',icon:'shield',chk:function(){return D.sess.some(function(s){return safeNum(s.dur,0)>=21600;});}},
   {id:'early',n:'Early Bird',d:'Start a session before 6 AM',icon:'star',chk:function(){return D.sess.some(function(s){return s.ts&&new Date(s.ts).getHours()<6;});}},
   {id:'owl',n:'Night Owl',d:'Start a session after midnight',icon:'moon',chk:function(){return D.sess.some(function(s){if(!s.ts)return false;var h=new Date(s.ts).getHours();return h>=0&&h<4;});}},
-  {id:'subj15',n:'Renaissance Mind',d:'Study 15 different subjects',icon:'book',chk:function(){return uniqueStrings(D.sess.map(function(s){return s.subj;})).length>=15;}},
-  {id:'subj20',n:'Universal Scholar',d:'Study 20 different subjects',icon:'brain',chk:function(){return uniqueStrings(D.sess.map(function(s){return s.subj;})).length>=20;}},
+  {id:'subj15',n:'Renaissance Mind',d:'Study 15 different subjects',icon:'book',chk:function(){return allMainSubjects().length>=15;}},
+  {id:'subj20',n:'Universal Scholar',d:'Study 20 different subjects',icon:'brain',chk:function(){return allMainSubjects().length>=20;}},
   {id:'notes50',n:'Note Taker',d:'Write 50 notes',icon:'award',chk:function(){return (typeof NOTES!=='undefined'&&Array.isArray(NOTES)?NOTES.length:0)>=50;}},
   {id:'notes100',n:'Archivist',d:'Write 100 notes',icon:'trophy',chk:function(){return (typeof NOTES!=='undefined'&&Array.isArray(NOTES)?NOTES.length:0)>=100;}},
   {id:'lvl10',n:'Level 10',d:'Reach level 10',icon:'crown',chk:function(){return getLv()+1>=10;}},
@@ -3193,7 +3248,7 @@ function addManualSession(){
   if(subj && D.subj.indexOf(subj) < 0){ D.subj.push(subj); localStorage.setItem('fl_sj',JSON.stringify(D.subj)); scheduleCloudSave(); }
   var ts=new Date(date+'T'+time+':00').getTime();
   if(isNaN(ts))ts=Date.now();
-  var rec={id:uid(),subj:subj,dur:mins*60,d:date,done:true,manual:true,ts:ts,xp:mins};
+  var rec=normalizeSessionSubjects({id:uid(),subj:subj,dur:mins*60,d:date,done:true,manual:true,ts:ts,xp:mins});
   D.sess.push(rec); D.sess.sort(function(a,b){return safeNum(a.ts,0)-safeNum(b.ts,0);});
   D.xp=calcXP();
   localStorage.setItem('fl_s',JSON.stringify(D.sess)); localStorage.setItem('fl_xp',D.xp);
@@ -3637,7 +3692,8 @@ function focoPrettyDate(ts){
 
 function focoSessionSubject(s){
   if(!s) return 'General';
-  if(s.subj) return String(s.subj);
+  if(Array.isArray(s.subjs) && s.subjs.length && s.subjs[0]) return String(s.subjs[0]);
+  if(s.subj) return parseSubjString(s.subj)[0].s;
   if(Array.isArray(s.subjsDetail) && s.subjsDetail.length && s.subjsDetail[0] && s.subjsDetail[0].s) return String(s.subjsDetail[0].s);
   if(Array.isArray(s.subjs) && s.subjs.length && s.subjs[0]) return String(s.subjs[0]);
   return 'General';
