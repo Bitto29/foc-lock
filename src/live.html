@@ -1098,9 +1098,11 @@
     <div class="mhandle"></div>
     <button class="mclose" onclick="closeEditModal()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     <div class="mtitle">Edit Session</div>
-    <div style="font-size:13px;color:var(--text2);font-weight:500;margin-bottom:14px;line-height:1.5;">Fix a wrong subject name, study time, or date.</div>
+    <div style="font-size:13px;color:var(--text2);font-weight:500;margin-bottom:14px;line-height:1.5;">Fix the subject, sub-subject, study time, or date.</div>
     <input type="hidden" id="edit-sess-id">
-    <input type="text" class="inp" id="edit-subj" placeholder="Subject (e.g. Mathematics)">
+    <datalist id="edit-subj-list"></datalist>
+    <div id="edit-subj-rows"></div>
+    <button type="button" class="small-btn" onclick="addEditSubjRow()" style="margin:0 0 14px;">+ Add another subject</button>
     <div class="manual-grid" style="margin-bottom:11px;">
       <input type="date" class="inp" id="edit-date">
       <input type="time" class="inp" id="edit-time">
