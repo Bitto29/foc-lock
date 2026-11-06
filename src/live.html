@@ -133,6 +133,12 @@
       </div>
     </div>
 
+    <!-- Today's study routine -->
+    <div id="home-plan"></div>
+
+    <!-- Exam deadline strip (renders only when an exam is set) -->
+    <div id="home-exam"></div>
+
     <div class="tip-card">
       <div class="tip-title">Study Tip of the Day</div>
       <div class="tip-txt" id="daily-tip"></div>
@@ -612,6 +618,20 @@
         <div style="flex:1;"><div class="mi-t">Reminders</div><div class="mi-s">Set study alarms</div></div>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
       </div>
+      <div class="mi" onclick="gSub('sub-plan')">
+        <div class="mi-icon" style="background:rgba(34,199,122,.1);">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <div style="flex:1;"><div class="mi-t">Study Plan</div><div class="mi-s">Daily routine &amp; time goals</div></div>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="mi" onclick="gSub('sub-exam')">
+        <div class="mi-icon" style="background:rgba(232,69,90,.1);">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 14.5 15"/><line x1="9" y1="2" x2="15" y2="2"/></svg>
+        </div>
+        <div style="flex:1;"><div class="mi-t">Exam Countdown</div><div class="mi-s">Live countdown on Home</div></div>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
       <div class="mi" onclick="gSub('sub-sug')">
         <div class="mi-icon" style="background:rgba(34,199,122,.1);">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -662,6 +682,59 @@
         <button class="btn btn-p" onclick="addRem()">Add Reminder</button>
       </div>
       <div id="rem-list"></div>
+    </div>
+
+    <!-- STUDY PLAN -->
+    <div class="subp" id="sub-plan">
+      <button class="back-btn" onclick="gSub('more-main')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>Back</button>
+      <div class="page-title">Study Plan</div>
+      <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:14px;">
+        <div>
+          <div style="font-size:14px;font-weight:800;margin-bottom:3px;">Block notifications</div>
+          <div style="font-size:11px;color:var(--text2);font-weight:500;line-height:1.45;">Get a notification when a study block starts. Works even when the app is closed.</div>
+        </div>
+        <label class="tgl"><input type="checkbox" id="plan-notif-tgl" checked onchange="togglePlanNotif(this.checked)"><span class="tslider"></span></label>
+      </div>
+      <div class="card">
+        <div class="ctitle" id="plan-form-title">New Study Block</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div><div style="font-size:11px;color:var(--text2);margin:0 0 6px;font-weight:700;">From</div><input type="time" class="inp" id="plan-start" value="18:00"></div>
+          <div><div style="font-size:11px;color:var(--text2);margin:0 0 6px;font-weight:700;">To</div><input type="time" class="inp" id="plan-end" value="19:30"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin:0 0 6px;font-weight:700;">Subject</div>
+        <select class="inp" id="plan-subj"></select>
+        <div style="font-size:11px;color:var(--text2);margin:0 0 6px;font-weight:700;">Study goal for this block (minutes)</div>
+        <input type="number" class="inp" id="plan-goal" min="1" max="600" value="90">
+        <div style="font-size:11px;color:var(--text2);margin:0 0 6px;font-weight:700;">Repeat on</div>
+        <div id="plan-days" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+          <button class="small-btn" onclick="planPresetDays('weekdays')">Weekdays</button>
+          <button class="small-btn" onclick="planPresetDays('weekends')">Weekends</button>
+          <button class="small-btn" onclick="planPresetDays('all')">Every day</button>
+        </div>
+        <button class="btn btn-p" id="plan-save-btn" onclick="savePlanBlock()">Add to Routine</button>
+        <button class="btn btn-s" id="plan-cancel-btn" onclick="cancelPlanEdit()" style="display:none;margin-top:8px;">Cancel</button>
+      </div>
+      <div class="sec-lbl">Your Routine</div>
+      <div id="plan-list"></div>
+    </div>
+
+    <!-- EXAM COUNTDOWN -->
+    <div class="subp" id="sub-exam">
+      <button class="back-btn" onclick="gSub('more-main')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>Back</button>
+      <div class="page-title">Exam Countdown</div>
+      <div class="card">
+        <div class="ctitle" id="exam-form-title">New Exam</div>
+        <input type="text" class="inp" id="exam-name" placeholder="Exam name (e.g. HSC Physics)" maxlength="40">
+        <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:10px;">
+          <div><div style="font-size:11px;color:var(--text2);margin:0 0 6px;font-weight:700;">Date</div><input type="date" class="inp" id="exam-date"></div>
+          <div><div style="font-size:11px;color:var(--text2);margin:0 0 6px;font-weight:700;">Start time</div><input type="time" class="inp" id="exam-time" value="09:00"></div>
+        </div>
+        <button class="btn btn-p" id="exam-save-btn" onclick="saveExam()">Add Exam</button>
+        <button class="btn btn-s" id="exam-cancel-btn" onclick="cancelExamEdit()" style="display:none;margin-top:8px;">Cancel</button>
+      </div>
+      <div class="sec-lbl">Your Exams</div>
+      <div id="exam-list"></div>
     </div>
 
     <!-- SUGGESTIONS -->
