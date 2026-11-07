@@ -2566,7 +2566,7 @@ select.inp{appearance:none;-webkit-appearance:none;}
   position:sticky;top:0;z-index:30;
   margin:-16px -16px 14px;padding:14px 16px 10px;
   background:var(--bg);
-  border-bottom:1px solid var(--border);
+  border-bottom-right-radius: 7px;
 }
 @supports (background:color-mix(in srgb,red,blue)){
   .subp > .back-btn{background:color-mix(in srgb,var(--bg) 90%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);}
