@@ -690,7 +690,7 @@
       <div class="page-title">Study Plan</div>
       <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:14px;">
         <div>
-          <div style="font-size:14px;font-weight:800;margin-bottom:3px;">Block notifications</div>
+          <div style="font-size:14px;font-weight:800;margin-bottom:3px;">Routine notifications</div>
           <div style="font-size:11px;color:var(--text2);font-weight:500;line-height:1.45;">Get a notification when a study block starts. Works even when the app is closed.</div>
         </div>
         <label class="tgl"><input type="checkbox" id="plan-notif-tgl" checked onchange="togglePlanNotif(this.checked)"><span class="tslider"></span></label>
@@ -769,7 +769,7 @@
 
       <div class="card">
         <div class="ctitle">&#127919; Starting a Session</div>
-        <div class="tip-txt">Tap the <strong>Start Session</strong> button on Home or the &#9654;&#65038; icon in the header. Choose your subject from saved subjects or type a custom one, pick a timer (15, 20, 25, 30, 45, 60 min, custom, or No Timer for open sessions), then tap <strong>Start</strong>. If you enable Fullscreen Lock, the app enters fullscreen and monitors if you leave.</div>
+        <div class="tip-txt">Tap the <strong>Start Session</strong> button on Home or the &#9654;&#65038; icon in the header. Choose your subject from saved subjects or type a custom one, pick a timer (15, 20, 25, 30, 45, 60 min, custom, or No Timer for open sessions), then tap <strong>Start</strong>. You can also tap <strong>Start</strong> on a block in <strong>Today&rsquo;s Routine</strong> on Home &mdash; it fills in the subject and the minutes you still have left. If you enable Fullscreen Lock, the app enters fullscreen and monitors if you leave.</div>
       </div>
 
       <div class="card">
@@ -787,8 +787,18 @@
       </div>
 
       <div class="card">
+        <div class="ctitle">&#128197; Study Plan &amp; Daily Routine</div>
+        <div class="tip-txt">Go to <strong>More &rarr; Study Plan</strong> to plan <em>when</em> and <em>how much</em> you study.<br>&bull; Pick a <strong>From / To</strong> time, a <strong>subject</strong> (or Any subject), a <strong>goal in minutes</strong>, and the days it repeats (Weekdays, Weekends, Every day, or custom).<br>&bull; Your blocks for today show on Home under <strong>Today&rsquo;s Routine</strong> with progress: <strong>Upcoming</strong>, <strong>Now</strong>, <strong>Done</strong> or <strong>Missed</strong>.<br>&bull; Study time counts toward a block when the session ends inside its time window (plus 15 minutes) and matches its subject.<br>&bull; Use the pencil to edit a block and the bin to delete it.<br>&bull; <strong>Notifications:</strong> the switch at the top turns block notifications on or off for everything. Each block also has its own <strong>Notify</strong> toggle, so you can silence one subject and keep the rest. Both are on by default, and alerts arrive even when the app is closed.</div>
+      </div>
+
+      <div class="card">
+        <div class="ctitle">&#9201;&#65038; Exam Countdown</div>
+        <div class="tip-txt">Go to <strong>More &rarr; Exam Countdown</strong> and add an exam name, date and start time. It is optional &mdash; nothing shows on Home until you add one.<br>&bull; Home shows a slim bar under Today&rsquo;s Routine with the time left (like <em>12d 4h left</em>).<br>&bull; The bar is <strong>green</strong> when the exam is far away and slowly turns <strong>red</strong> as it gets close.<br>&bull; You can add several exams; Home shows the nearest one and how many more are coming.</div>
+      </div>
+
+      <div class="card">
         <div class="ctitle">&#128200; Progress Tab</div>
-        <div class="tip-txt">View a <strong>7-day bar chart</strong> of daily study time, a <strong>subject breakdown</strong> with percentage splits, and your full <strong>session history</strong> with duration, subject, date and status. Filter history by subject using the dropdown. Tap any session to see details or delete it.</div>
+        <div class="tip-txt">View a <strong>7-day bar chart</strong> of daily study time, a <strong>subject breakdown</strong> with percentage splits, and your full <strong>session history</strong> with duration, subject, date and status. The breakdown counts the <strong>main subject</strong> only &mdash; studying <em>Physics &middot; Practical</em> adds to <strong>Physics</strong>. Filter history by subject using the dropdown. Tap any session to see details, <strong>edit</strong> it or delete it.<br>When you edit a session, the <strong>Subject</strong> and <strong>Sub-subject</strong> have separate boxes. Use <strong>+ Add another subject</strong> if you studied more than one in the same session.</div>
       </div>
 
       <div class="card">
@@ -821,18 +831,33 @@
       </div>
 
       <div class="card">
+        <div class="ctitle">&#128221; Notes</div>
+        <div class="tip-txt">Go to <strong>Foc Space &rarr; Notes</strong> to write notes with pictures. Notes are saved <strong>on your device first</strong>, so they work offline and even before you sign in, then sync to your account in the background. If the cloud can&rsquo;t be reached, your notes stay safe on the device and sync later. You can also save a note from inside a session.</div>
+      </div>
+
+      <div class="card">
         <div class="ctitle">&#128736;&#65038; Foc Space &mdash; Calculator</div>
         <div class="tip-txt">Go to <strong>Foc Space &rarr; Calc</strong> for a built-in scientific calculator. Also available in <strong>More &rarr; Calculator</strong> (full Casio fx-991EX style), and as a <strong>popup during sessions</strong>. Keyboard input works when the calculator is active &mdash; type numbers and operators directly.</div>
       </div>
 
       <div class="card">
         <div class="ctitle">&#128276; Reminders</div>
-        <div class="tip-txt">Go to <strong>More &rarr; Reminders</strong>. Add a time and label, then enable browser notifications when prompted. The app fires a notification at that time every day reminding you to study. You can add multiple reminders and toggle each on/off.</div>
+        <div class="tip-txt">Go to <strong>More &rarr; Reminders</strong>. Add a time and label and the app reminds you at that time every day. You can add several reminders and toggle each on or off. Adding the same time and label twice is blocked, so you will not get duplicate alerts. On the Android app, reminders are set as system alarms, so they arrive even when the app is closed.</div>
       </div>
 
       <div class="card">
-        <div class="ctitle">&#9729;&#65038; Cloud Sync</div>
-        <div class="tip-txt">Sign in via <strong>More &rarr; Account</strong> (email/password). Your sessions, XP, achievements, reminders, and display name all sync to the cloud in real time via Supabase. Sign in on any device to restore your data. Offline changes are saved locally and synced when you reconnect.</div>
+        <div class="ctitle">&#128101; Friends &amp; Leaderboard</div>
+        <div class="tip-txt">Open the <strong>Friends</strong> tab, share your friend code or enter a friend&rsquo;s code with <strong>Add Friend</strong>. Friends appear instantly in your list and on the leaderboard so you can compare study time.</div>
+      </div>
+
+      <div class="card">
+        <div class="ctitle">&#9729;&#65038; Cloud Sync &amp; Accounts</div>
+        <div class="tip-txt">Sign in via <strong>More &rarr; Account</strong> (email/password). Your sessions, XP, achievements, reminders, study plan, exams, notes and display name sync to the cloud via Supabase. Sign in on any device to restore your data. Offline changes are saved locally and synced when you reconnect.<br>Each account is kept separate: <strong>signing out clears this device</strong> after syncing, and a new account always starts empty. If your latest changes could not sync, the app warns you before signing out.</div>
+      </div>
+
+      <div class="card">
+        <div class="ctitle">&#8592; Back Button &amp; Navigation</div>
+        <div class="tip-txt">On Android, the <strong>Back</strong> button closes whatever is open on top (a popup or sidebar), then steps back from a More sub-page to the More menu, then through your tabs to <strong>Home</strong>. Press Back on Home to <strong>close the app</strong>. During a running session Back does nothing, so you can&rsquo;t leave by accident. Inside More, the <strong>Back</strong> button at the top stays in place as you scroll.</div>
       </div>
 
       <div class="card">
