@@ -219,7 +219,8 @@ function cloneCloudState(){
     theme:D.theme,
     name:D.name,
     streak:D.streak,
-    lock:D.lock
+    lock:D.lock,
+    annSeen:getSeenAnnouncementIds()
   };
   try{ return JSON.parse(JSON.stringify(state)); }
   catch(e){ return state; }
@@ -298,6 +299,7 @@ function mergeStates(remote){
   if(!remote||typeof remote!=='object')return;
   D.sess=mergeByKey(remote.sess||[],D.sess||[],function(s){ return s.id||[s.ts||0,s.d||'',s.subj||'',s.dur||0].join('|'); }).sort(function(a,b){ return safeNum(a.ts,0)-safeNum(b.ts,0); });
   D.rems=mergeRems(remote.rems||[],D.rems||[]);
+  mergeSeenAnnouncements(remote.annSeen);
   // Study plan + exams: whichever side changed last wins as a whole, so deletes on one device stick on the others.
   if(safeNum(remote.planTs,0)>safeNum(D.planTs,0)){
     D.plan=Array.isArray(remote.plan)?remote.plan:[];
@@ -830,7 +832,19 @@ function getSeenAnnouncementIds(){
 }
 function markAnnouncementSeen(id){
   var seen = getSeenAnnouncementIds();
-  if(seen.indexOf(id) === -1){ seen.push(id); localStorage.setItem(SEEN_ANNOUNCEMENTS_KEY, JSON.stringify(seen)); }
+  if(seen.indexOf(id) === -1){
+    seen.push(id);
+    if(seen.length > 300) seen = seen.slice(-300);
+    localStorage.setItem(SEEN_ANNOUNCEMENTS_KEY, JSON.stringify(seen));
+    if(AUTH && AUTH.user) scheduleCloudSave();   // remember it in the account, so a reinstall or update never shows it again
+  }
+}
+function mergeSeenAnnouncements(remoteList){
+  if(!Array.isArray(remoteList) || !remoteList.length) return;
+  var seen = getSeenAnnouncementIds(), have = {}, changed = false;
+  seen.forEach(function(id){ have[id] = 1; });
+  remoteList.forEach(function(id){ if(id && !have[id]){ seen.push(id); have[id] = 1; changed = true; } });
+  if(changed) localStorage.setItem(SEEN_ANNOUNCEMENTS_KEY, JSON.stringify(seen.slice(-300)));
 }
 
 async function checkAnnouncements(){
@@ -854,9 +868,49 @@ async function checkAnnouncements(){
   }catch(e){}
 }
 
+/* Opens a link or mail app. On the Android app this goes through the system (default browser / default mail app). */
+function openExternal(url){
+  try{
+    var AppP = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+    if(isNativeApp() && AppP && AppP.openUrl){
+      AppP.openUrl({url: url}).catch(function(){ window.open(url, '_blank'); });
+      return;
+    }
+  }catch(e){}
+  if(url.indexOf('mailto:') === 0) window.location.href = url;
+  else window.open(url, '_blank', 'noopener');
+}
+/* Finds the first web link and the first email address in an announcement. */
+function announcementActions(a){
+  var text = String(a.title || '') + ' ' + String(a.message || '');
+  var acts = [];
+  // email first, and take it out of the text so its domain isn't mistaken for a website
+  var mail = text.match(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}/);
+  var rest = mail ? text.replace(mail[0], ' ') : text;
+  // web link: https://..., www...., or a bare site like foclock.vercel.app
+  var link = rest.match(/(?:https?:\/\/|www\.)[^\s<>"']+|\b(?:[a-z0-9\-]+\.)+(?:app|com|net|org|io|dev|me|co|xyz|info|edu|gov|bd|ly|ai)\b(?:\/[^\s<>"']*)?/i);
+  if(link){
+    var u = link[0].replace(/[.,;:!?)\]}]+$/, '');
+    if(!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    acts.push({kind:'link', url:u});
+  }
+  if(mail) acts.push({kind:'mail', url:'mailto:' + mail[0]});
+  return acts;
+}
 function showAnnouncementPopup(a){
   var existing = document.getElementById('ann-popup-ov');
   if(existing) existing.remove();
+
+  var acts = announcementActions(a);
+  var closeLabel = a.dismissible ? 'Dismiss' : 'OK';
+  var btnBase = 'flex:1;min-width:110px;padding:12px;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;';
+  var closeStyle = acts.length
+    ? btnBase + 'background:var(--bg3,#252c3d);color:var(--text,#fff);border:1px solid var(--border,rgba(255,255,255,.12));'
+    : btnBase + 'background:var(--accent,#3d8fe0);color:#fff;';
+  var actHtml = acts.map(function(x, i){
+    var label = acts.length === 1 ? 'Open' : (x.kind === 'mail' ? 'Send email' : 'Open link');
+    return '<button class="ann-act" data-i="' + i + '" style="' + btnBase + 'background:var(--accent,#3d8fe0);color:#fff;">' + label + '</button>';
+  }).join('');
 
   var ov = document.createElement('div');
   ov.id = 'ann-popup-ov';
@@ -864,17 +918,20 @@ function showAnnouncementPopup(a){
   ov.innerHTML =
     '<div style="background:var(--bg2,#1a1f2e);border-radius:16px;padding:24px;max-width:340px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.4);">'
     + '<div style="font-size:17px;font-weight:800;margin-bottom:8px;color:var(--text,#fff);">' + escHtml(a.title) + '</div>'
-    + '<div style="font-size:14px;color:var(--text2,#aab);line-height:1.5;margin-bottom:20px;">' + escHtml(a.message) + '</div>'
-    + (a.dismissible
-        ? '<button id="ann-close-btn" style="width:100%;padding:12px;border:none;border-radius:10px;background:var(--accent,#3d8fe0);color:#fff;font-weight:700;font-size:14px;cursor:pointer;">Got it</button>'
-        : '<button id="ann-close-btn" style="width:100%;padding:12px;border:none;border-radius:10px;background:var(--accent,#3d8fe0);color:#fff;font-weight:700;font-size:14px;cursor:pointer;">OK</button>')
-    + '</div>';
+    + '<div style="font-size:14px;color:var(--text2,#aab);line-height:1.5;margin-bottom:20px;white-space:pre-line;max-height:60vh;overflow-y:auto;word-break:break-word;">' + escHtml(a.message) + '</div>'
+    + '<div style="display:flex;gap:10px;flex-wrap:wrap;">'
+    + '<button id="ann-close-btn" style="' + closeStyle + '">' + closeLabel + '</button>'
+    + actHtml
+    + '</div></div>';
 
   document.body.appendChild(ov);
   document.getElementById('ann-close-btn').onclick = function(){
     if(a.dismissible) markAnnouncementSeen(a.id);
     ov.remove();
   };
+  Array.prototype.forEach.call(ov.querySelectorAll('.ann-act'), function(btn){
+    btn.onclick = function(){ openExternal(acts[parseInt(btn.getAttribute('data-i'), 10)].url); };
+  });
 }
 
 function escHtml(s){
