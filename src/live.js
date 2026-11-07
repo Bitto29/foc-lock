@@ -5910,7 +5910,7 @@ function renderHomePlan(){
       +'<div class="rem-time-badge" style="min-width:74px;text-align:center;">'+fmtClock(b.s)+'</div>'
       +'<div style="flex:1;min-width:0;">'
       +'<div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(b.subj||'Any subject')+'</div>'
-      +'<div style="font-size:11px;color:var(--text2);font-weight:600;margin-top:1px;">until '+fmtClock(b.e)+' · '+fmtDur(got)+' / '+fmtDur(b.goal)+'</div>'
+      +'<div style="font-size:10px;color:var(--text2);font-weight:600;margin-top:2px;">until '+fmtClock(b.e)+' · '+fmtDur(got)+' / '+fmtDur(b.goal)+'</div>'
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:8px;">'
       +'<span style="font-size:11px;font-weight:800;color:'+color+';">'+badge+'</span>'+startBtn
