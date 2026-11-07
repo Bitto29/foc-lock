@@ -5961,18 +5961,21 @@ function renderHomePlan(){
     else if(nowMin>=eM){ st='missed'; badge='Missed'; color='var(--warn)'; }
     else { st='next'; badge='Upcoming'; color='var(--text3)'; }
     var startBtn=(st==='now'||st==='next')
-      ?'<button class="small-btn" onclick="startPlanBlock(\''+b.id+'\')">Start</button>':'';
+      ?'<button class="small-btn plan-start" onclick="startPlanBlock(\''+b.id+'\')">Start</button>':'';
+    // Two tidy lines: [time] name + details + status, then progress bar + Start. Nothing competes for width, so it fits narrow phones.
     return '<div class="plan-row plan-'+st+'">'
-      +'<div style="display:flex;align-items:center;gap:10px;">'
-      +'<div class="rem-time-badge" style="min-width:74px;text-align:center;">'+fmtClock(b.s)+'</div>'
-      +'<div style="flex:1;min-width:0;">'
-      +'<div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escHtml(b.subj||'Any subject')+'</div>'
-      +'<div style="font-size:10px;color:var(--text2);font-weight:600;margin-top:2px;">until '+fmtClock(b.e)+' · '+fmtDur(got)+' / '+fmtDur(b.goal)+'</div>'
+      +'<div class="plan-main">'
+      +'<div class="rem-time-badge plan-time">'+fmtClock(b.s)+'</div>'
+      +'<div class="plan-info">'
+      +'<div class="plan-name">'+escHtml(b.subj||'Any subject')+'</div>'
+      +'<div class="plan-sub">until '+fmtClock(b.e)+' · '+fmtDur(got)+' / '+fmtDur(b.goal)+'</div>'
       +'</div>'
-      +'<div style="display:flex;align-items:center;gap:8px;">'
-      +'<span style="font-size:11px;font-weight:800;color:'+color+';">'+badge+'</span>'+startBtn
-      +'</div></div>'
-      +'<div class="xb-wrap" style="margin:8px 0 0;"><div class="xb-fill" style="width:'+pct+'%;'+(st==='done'?'background:var(--success);':'')+'"></div></div>'
+      +'<span class="plan-badge" style="color:'+color+';">'+badge+'</span>'
+      +'</div>'
+      +'<div class="plan-bar-row">'
+      +'<div class="xb-wrap plan-bar"><div class="xb-fill" style="width:'+pct+'%;'+(st==='done'?'background:var(--success);':'')+'"></div></div>'
+      +startBtn
+      +'</div>'
       +'</div>';
   }).join('');
   c.innerHTML='<div class="card">'
