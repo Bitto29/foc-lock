@@ -951,34 +951,27 @@ function _currentSub(){
   var active=document.querySelector('#scr-more .subp.active');
   return active ? active.id : 'more-main';
 }
-// Handle browser back (Android back button, Alt+Left, mouse back)
-window.addEventListener('popstate',function(e){
-  var s=e.state;
-
+/* Closes the top-most overlay (sidebar, session chat, PiP, modals). Returns true if it closed something.
+   Shared by the browser back (popstate) and the native Android back button. */
+function closeTopOverlay(){
   /* 1. Foco history sidebar */
   var focosb=document.getElementById('foco-sidebar');
-  if(focosb&&focosb.classList.contains('open')){
-    focoSidebarClose(); history.pushState(s,'',''); return;
-  }
+  if(focosb&&focosb.classList.contains('open')){ focoSidebarClose(); return true; }
   /* 2. Session Foco overlay */
   var sfoco=document.getElementById('sess-foco-overlay');
-  if(sfoco&&sfoco.classList.contains('open')){
-    sfoco.classList.remove('open'); history.pushState(s,'',''); return;
-  }
+  if(sfoco&&sfoco.classList.contains('open')){ sfoco.classList.remove('open'); return true; }
   /* 3. PiP minimized — on native, back should behave like the home button
      (leave into PiP) rather than un-minimizing back to the full session
      view. Calling enterPip() directly here works reliably even without
      onUserLeaveHint's special timing, since this runs while the activity
-     is still fully resumed — the back-button case doesn't have the same
-     "about to lose focus" race the home-button path has to work around. */
+     is still fully resumed. */
   if(SESS_MIN){
     if(isNativeApp() && CUR && window.Capacitor && window.Capacitor.Plugins.PipPlugin){
       try{ window.Capacitor.Plugins.PipPlugin.enterPip(); }catch(e){}
-      history.pushState(s,'',''); return;
+      return true;
     }
-    maximizeSess(); history.pushState(s,'',''); return;
+    maximizeSess(); return true;
   }
-
   /* 4. Other modals */
   var modals=['session-calc-modal','mgate','sm','auth-modal','manual-modal','edit-session-modal','friends-modal','name-modal'];
   for(var i=0;i<modals.length;i++){
@@ -992,10 +985,15 @@ window.addEventListener('popstate',function(e){
       else if(modals[i]==='edit-session-modal')closeEditModal();
       else if(modals[i]==='friends-modal')closeFriendsModal();
       else if(modals[i]==='name-modal')closeNameModal();
-      history.pushState(s,'','');
-      return;
+      return true;
     }
   }
+  return false;
+}
+// Handle browser back (Android back button, Alt+Left, mouse back)
+window.addEventListener('popstate',function(e){
+  var s=e.state;
+  if(closeTopOverlay()){ history.pushState(s,'',''); return; }
 
   /* 5. Sub-page → back to more-main */
   if(!s){ goScr('home',null,true); return; }
@@ -1424,6 +1422,23 @@ function setupNativeLifecycleListeners(){
   try{
     var AppPlugin = window.Capacitor.Plugins.App;
     if(!AppPlugin) return;
+    /* Android back button: step back through the app (overlay, sub-page, tab) until Home, then close the app.
+       Without this listener the WebView's own history decided what back did, and it never reached "exit". */
+    if(AppPlugin.addListener){
+      AppPlugin.addListener('backButton', function(){
+        if(closeTopOverlay()) return;
+        var sessEl=document.getElementById('sess');
+        if(CUR && sessEl && sessEl.classList.contains('active')) return;   // never leave a running session by accident
+        var tab=_currentTab(), sub=_currentSub();
+        if(tab==='more' && sub!=='more-main'){ gSub('more-main',true); return; }
+        if(tab!=='home'){
+          history.back();   // walks back through the tabs you visited (popstate handles it)
+          setTimeout(function(){ if(_currentTab()!=='home' && _currentTab()===tab) goScr('home',null,true); },200);
+          return;
+        }
+        try{ AppPlugin.exitApp(); }catch(e){}
+      });
+    }
     AppPlugin.addListener('appStateChange', function(state){
       if(state.isActive && document.body.classList.contains('native-pip-active')){
         /* Back in the app — Android auto-exits system PiP on its own when
