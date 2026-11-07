@@ -2571,3 +2571,14 @@ select.inp{appearance:none;-webkit-appearance:none;}
 @supports (background:color-mix(in srgb,red,blue)){
   .subp > .back-btn{background:color-mix(in srgb,var(--bg) 90%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);}
 }
+
+/* Today's Routine row: two lines, fits narrow phones */
+.plan-main{display:flex;align-items:center;gap:10px;}
+.plan-time{min-width:76px;text-align:center;flex-shrink:0;white-space:nowrap;}
+.plan-info{flex:1;min-width:0;}
+.plan-name{font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.plan-sub{font-size:10px;color:var(--text2);font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.plan-badge{font-size:11px;font-weight:800;flex-shrink:0;}
+.plan-bar-row{display:flex;align-items:center;gap:12px;margin-top:10px;}
+.plan-bar{flex:1;margin:0 !important;}
+.plan-start{flex-shrink:0;padding:6px 18px;font-weight:700;}
